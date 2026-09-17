@@ -1,0 +1,62 @@
+{
+  "model": "ornith:9b",
+  "records": [
+    {
+      "task": "add-feature-with-test",
+      "kind": "capability",
+      "attempt": 1,
+      "passed": true,
+      "reason": "clamp implemented with a test that actually catches a broken clamp",
+      "turns": 6,
+      "stopReason": "completed",
+      "elapsedMs": 66433,
+      "toolCalls": {
+        "list_dir": 2,
+        "read_file": 3,
+        "edit_file": 2,
+        "shell": 1
+      },
+      "malformedCalls": 0,
+      "failedEdits": 0,
+      "deniedCalls": 0
+    },
+    {
+      "task": "add-feature-with-test",
+      "kind": "capability",
+      "attempt": 2,
+      "passed": true,
+      "reason": "clamp implemented with a test that actually catches a broken clamp",
+      "turns": 7,
+      "stopReason": "completed",
+      "elapsedMs": 73976,
+      "toolCalls": {
+        "list_dir": 2,
+        "read_file": 3,
+        "edit_file": 2,
+        "shell": 1
+      },
+      "malformedCalls": 0,
+      "failedEdits": 0,
+      "deniedCalls": 0
+    },
+    {
+      "task": "add-feature-with-test",
+      "kind": "capability",
+      "attempt": 3,
+      "passed": true,
+      "reason": "clamp implemented with a test that actually catches a broken clamp",
+      "turns": 7,
+      "stopReason": "completed",
+      "elapsedMs": 75417,
+      "toolCalls": {
+        "list_dir": 2,
+        "read_file": 3,
+        "edit_file": 2,
+        "shell": 1
+      },
+      "malformedCalls": 0,
+      "failedEdits": 0,
+      "deniedCalls": 0
+    }
+  ]
+}

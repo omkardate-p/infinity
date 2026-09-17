@@ -32,7 +32,7 @@ Existing over-engineering is not protected by being existing. In any file your c
 
 Outside those files, name what you found and what removing it costs. Do not go hunting mid-task.
 
-**Not now, and not as a favour.** Embeddings, retrieval, vector stores, MCP, LSP, AST editing, multi-agent anything, model routing, a TUI, remote sandboxes, cloud sync, prompt-engineering the system prompt to paper over a runtime defect. A request that lands here gets this line, not code.
+**Not now, and not as a favour.** Embeddings, retrieval, vector stores, MCP, LSP, AST editing, multi-agent anything, model routing, remote sandboxes, cloud sync, prompt-engineering the system prompt to paper over a runtime defect. A request that lands here gets this line, not code.
 
 ### 3. Reuse, and improve what you reuse
 

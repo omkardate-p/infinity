@@ -2,8 +2,9 @@
 /**
  * The command line: infinity "task".
  *
- * Streams the model's output as it arrives, prompts for approval before any
- * command or file change, and stops the current operation cleanly on Ctrl-C.
+ * Opens the interactive interface on a terminal, and streams plain lines
+ * anywhere else or under --no-tui. Either way approval is asked before any
+ * command or file change, and the current operation stops cleanly on interrupt.
  */
 
 import { createInterface } from "node:readline/promises";
@@ -13,6 +14,8 @@ import { listSessions, loadSession, type SessionState } from "./agent/state.ts";
 import { createModel } from "./model/model.ts";
 import { ToolRegistry, defaultTools } from "./tools/registry.ts";
 import type { ApprovalDecision, ApprovalRequest } from "./tools/tool.ts";
+import { runTui } from "../tui/run.ts";
+import pkg from "../package.json";
 
 const DEFAULT_MODEL = "ornith:9b";
 
@@ -32,6 +35,7 @@ interface Options {
   listSessions: boolean;
   autoApprove: boolean;
   showThinking: boolean;
+  useTui: boolean;
   maxTurns?: number;
 }
 
@@ -43,6 +47,7 @@ function parseArgs(argv: string[]): Options | { help: string } {
     listSessions: false,
     autoApprove: false,
     showThinking: true,
+    useTui: true,
   };
   const positional: string[] = [];
 
@@ -70,6 +75,9 @@ function parseArgs(argv: string[]): Options | { help: string } {
       case "--no-thinking":
         options.showThinking = false;
         break;
+      case "--no-tui":
+        options.useTui = false;
+        break;
       case "--max-turns":
         options.maxTurns = Number(argv[++index]);
         break;
@@ -94,6 +102,7 @@ function usage(): string {
     "  --sessions         List saved sessions in this workspace",
     "  --max-turns <n>    Stop after n model turns",
     "  --no-thinking      Hide the model's reasoning",
+    "  --no-tui           Stream plain lines instead of the interactive interface",
     "  --yes              Approve every action without asking (non-interactive runs)",
   ].join("\n");
 }
@@ -118,13 +127,32 @@ async function main(): Promise<number> {
     return 0;
   }
 
+  const model = createModel({ provider: parsed.provider, model: parsed.model });
+  const registry = new ToolRegistry(defaultTools());
+  const resumed = parsed.resume
+    ? await loadSession(workspace, parsed.resume)
+    : undefined;
+
+  // A pipe cannot host an interactive interface, so a destination that is not a
+  // terminal takes the line renderer whether or not it asked for one.
+  if (parsed.useTui && stdout.isTTY) {
+    return runTui({
+      model,
+      registry,
+      workspace,
+      version: pkg.version,
+      maxTurns: parsed.maxTurns,
+      resumed,
+      initialTask: parsed.task || undefined,
+      autoApprove: parsed.autoApprove,
+    });
+  }
+
   if (!parsed.task && !parsed.resume) {
     console.error(usage());
     return 2;
   }
 
-  const model = createModel({ provider: parsed.provider, model: parsed.model });
-  const registry = new ToolRegistry(defaultTools());
   const prompts = createInterface({ input: stdin, output: stdout });
 
   const agent = new Agent({
@@ -138,8 +166,8 @@ async function main(): Promise<number> {
   });
 
   let session: SessionState;
-  if (parsed.resume) {
-    session = await loadSession(workspace, parsed.resume);
+  if (resumed) {
+    session = resumed;
     if (parsed.task)
       session.entries.push({
         message: { role: "user", content: parsed.task },
