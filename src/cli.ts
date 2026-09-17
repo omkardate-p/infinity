@@ -14,7 +14,7 @@ import { createModel } from "./model/model.ts";
 import { ToolRegistry, defaultTools } from "./tools/registry.ts";
 import type { ApprovalDecision, ApprovalRequest } from "./tools/tool.ts";
 
-const DEFAULT_MODEL = "qwen3-32k:latest";
+const DEFAULT_MODEL = "ornith:9b";
 
 const style = {
   dim: (text: string) => `\x1b[2m${text}\x1b[0m`,
