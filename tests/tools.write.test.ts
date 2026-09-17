@@ -1,3 +1,8 @@
+/**
+ * The mutating tools: an ambiguous edit is refused, a denial changes nothing,
+ * and a path outside the workspace never reaches an approval prompt.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -10,10 +15,15 @@ describe("edit_file", () => {
     const ws = await makeWorkspace();
     await ws.write("a.ts", "const a = 1;\nconst b = 2;\n");
 
-    const result = await editFile.execute({ path: "a.ts", old_text: "const b = 2;", new_text: "const b = 3;" }, ws.ctx);
+    const result = await editFile.execute(
+      { path: "a.ts", old_text: "const b = 2;", new_text: "const b = 3;" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(true);
-    expect(await readFile(join(ws.root, "a.ts"), "utf8")).toBe("const a = 1;\nconst b = 3;\n");
+    expect(await readFile(join(ws.root, "a.ts"), "utf8")).toBe(
+      "const a = 1;\nconst b = 3;\n",
+    );
     expect(result.meta?.line).toBe(2);
   });
 
@@ -22,7 +32,10 @@ describe("edit_file", () => {
     const original = "call();\ncall();\n";
     await ws.write("a.ts", original);
 
-    const result = await editFile.execute({ path: "a.ts", old_text: "call();", new_text: "call(1);" }, ws.ctx);
+    const result = await editFile.execute(
+      { path: "a.ts", old_text: "call();", new_text: "call(1);" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("ambiguous");
@@ -34,7 +47,10 @@ describe("edit_file", () => {
     const ws = await makeWorkspace();
     await ws.write("a.ts", "const a = 1;\n");
 
-    const result = await editFile.execute({ path: "a.ts", old_text: "const zzz = 9;", new_text: "x" }, ws.ctx);
+    const result = await editFile.execute(
+      { path: "a.ts", old_text: "const zzz = 9;", new_text: "x" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("not found");
@@ -44,7 +60,10 @@ describe("edit_file", () => {
     const ws = await makeWorkspace();
     await ws.write("a.ts", "const a = 1;\n");
 
-    await editFile.execute({ path: "a.ts", old_text: "const a = 1;", new_text: "const a = 2;" }, ws.ctx);
+    await editFile.execute(
+      { path: "a.ts", old_text: "const a = 1;", new_text: "const a = 2;" },
+      ws.ctx,
+    );
 
     expect(ws.approvals).toHaveLength(1);
     expect(ws.approvals[0]?.tool).toBe("edit_file");
@@ -56,17 +75,25 @@ describe("edit_file", () => {
     const ws = await makeWorkspace({ approval: "deny" });
     await ws.write("a.ts", "const a = 1;\n");
 
-    const result = await editFile.execute({ path: "a.ts", old_text: "1", new_text: "2" }, ws.ctx);
+    const result = await editFile.execute(
+      { path: "a.ts", old_text: "1", new_text: "2" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.meta?.reason).toBe("denied");
-    expect(await readFile(join(ws.root, "a.ts"), "utf8")).toBe("const a = 1;\n");
+    expect(await readFile(join(ws.root, "a.ts"), "utf8")).toBe(
+      "const a = 1;\n",
+    );
   });
 
   test("rejects a path outside the workspace before reading it", async () => {
     const ws = await makeWorkspace();
 
-    const result = await editFile.execute({ path: "/etc/hosts", old_text: "localhost", new_text: "evil" }, ws.ctx);
+    const result = await editFile.execute(
+      { path: "/etc/hosts", old_text: "localhost", new_text: "evil" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("outside the workspace");
@@ -78,11 +105,16 @@ describe("write_file", () => {
   test("creates a file, including missing parent directories", async () => {
     const ws = await makeWorkspace();
 
-    const result = await writeFileTool.execute({ path: "src/new/a.ts", content: "export {};\n" }, ws.ctx);
+    const result = await writeFileTool.execute(
+      { path: "src/new/a.ts", content: "export {};\n" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(true);
     expect(result.meta?.created).toBe(true);
-    expect(await readFile(join(ws.root, "src/new/a.ts"), "utf8")).toBe("export {};\n");
+    expect(await readFile(join(ws.root, "src/new/a.ts"), "utf8")).toBe(
+      "export {};\n",
+    );
   });
 
   test("labels an overwrite distinctly in the approval request", async () => {
@@ -97,7 +129,10 @@ describe("write_file", () => {
   test("does not write when approval is denied", async () => {
     const ws = await makeWorkspace({ approval: "deny" });
 
-    const result = await writeFileTool.execute({ path: "a.ts", content: "x\n" }, ws.ctx);
+    const result = await writeFileTool.execute(
+      { path: "a.ts", content: "x\n" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.meta?.reason).toBe("denied");
@@ -107,7 +142,10 @@ describe("write_file", () => {
   test("rejects writing outside the workspace without asking for approval", async () => {
     const ws = await makeWorkspace();
 
-    const result = await writeFileTool.execute({ path: "../escaped.txt", content: "x" }, ws.ctx);
+    const result = await writeFileTool.execute(
+      { path: "../escaped.txt", content: "x" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("outside the workspace");

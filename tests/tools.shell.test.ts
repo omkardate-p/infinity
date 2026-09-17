@@ -1,3 +1,8 @@
+/**
+ * shell: exit codes, captured output, truncation, the timeout kill, abort, and
+ * the fact that a denied command does not run.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { shell } from "../src/tools/shell.ts";
 import { makeWorkspace } from "./helpers.ts";
@@ -25,7 +30,10 @@ describe("shell", () => {
   test("captures stderr", async () => {
     const ws = await makeWorkspace();
 
-    const result = await shell.execute({ command: "echo oops 1>&2; exit 1" }, ws.ctx);
+    const result = await shell.execute(
+      { command: "echo oops 1>&2; exit 1" },
+      ws.ctx,
+    );
 
     expect(result.content).toContain("stderr:");
     expect(result.content).toContain("oops");
@@ -44,7 +52,10 @@ describe("shell", () => {
     const ws = await makeWorkspace();
 
     const started = Date.now();
-    const result = await shell.execute({ command: "sleep 30", timeout_ms: 1000 }, ws.ctx);
+    const result = await shell.execute(
+      { command: "sleep 30", timeout_ms: 1000 },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.meta?.reason).toBe("timeout");
@@ -56,7 +67,10 @@ describe("shell", () => {
     const ws = await makeWorkspace();
 
     const result = await shell.execute(
-      { command: "for i in $(seq 1 6000); do echo 'a line of output padding padding padding'; done" },
+      {
+        command:
+          "for i in $(seq 1 6000); do echo 'a line of output padding padding padding'; done",
+      },
       ws.ctx,
     );
 
@@ -67,11 +81,16 @@ describe("shell", () => {
   test("does not execute when approval is denied", async () => {
     const ws = await makeWorkspace({ approval: "deny" });
 
-    const result = await shell.execute({ command: "touch should-not-exist.txt" }, ws.ctx);
+    const result = await shell.execute(
+      { command: "touch should-not-exist.txt" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.meta?.reason).toBe("denied");
-    expect(await Bun.file(`${ws.root}/should-not-exist.txt`).exists()).toBe(false);
+    expect(await Bun.file(`${ws.root}/should-not-exist.txt`).exists()).toBe(
+      false,
+    );
   });
 
   test("stops a running command when the session is aborted", async () => {

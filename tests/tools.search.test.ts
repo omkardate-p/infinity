@@ -1,3 +1,8 @@
+/**
+ * search: what comes back, what is capped, and that it cannot reach outside the
+ * workspace.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { search } from "../src/tools/search.ts";
 import { makeWorkspace } from "./helpers.ts";
@@ -5,7 +10,10 @@ import { makeWorkspace } from "./helpers.ts";
 describe("search", () => {
   test("returns matches as relative path, line number and text", async () => {
     const ws = await makeWorkspace();
-    await ws.write("src/app.ts", "export function greet() {\n  return 'hi';\n}\n");
+    await ws.write(
+      "src/app.ts",
+      "export function greet() {\n  return 'hi';\n}\n",
+    );
 
     const result = await search.execute({ pattern: "greet" }, ws.ctx);
 
@@ -30,7 +38,10 @@ describe("search", () => {
     await ws.write("a.ts", "target\n");
     await ws.write("b.md", "target\n");
 
-    const result = await search.execute({ pattern: "target", glob: "*.ts" }, ws.ctx);
+    const result = await search.execute(
+      { pattern: "target", glob: "*.ts" },
+      ws.ctx,
+    );
 
     expect(result.content).toContain("a.ts");
     expect(result.content).not.toContain("b.md");
@@ -39,10 +50,16 @@ describe("search", () => {
   test("caps the number of returned matches", async () => {
     const ws = await makeWorkspace();
     for (let file = 0; file < 12; file++) {
-      await ws.write(`f${file}.ts`, Array.from({ length: 10 }, () => "needle").join("\n"));
+      await ws.write(
+        `f${file}.ts`,
+        Array.from({ length: 10 }, () => "needle").join("\n"),
+      );
     }
 
-    const result = await search.execute({ pattern: "needle", max_results: 5 }, ws.ctx);
+    const result = await search.execute(
+      { pattern: "needle", max_results: 5 },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(true);
     expect(result.meta?.returned).toBe(5);
@@ -53,7 +70,10 @@ describe("search", () => {
   test("rejects searching outside the workspace", async () => {
     const ws = await makeWorkspace();
 
-    const result = await search.execute({ pattern: "root", path: "/etc" }, ws.ctx);
+    const result = await search.execute(
+      { pattern: "root", path: "/etc" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("outside the workspace");

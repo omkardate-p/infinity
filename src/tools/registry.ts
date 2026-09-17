@@ -43,7 +43,6 @@ export class ToolRegistry {
     return this.tools.has(name);
   }
 
-  /** The tool list as the model is told about it. */
   specs(): ToolSpec[] {
     return [...this.tools.values()].map((tool) => ({
       name: tool.name,
@@ -52,11 +51,11 @@ export class ToolRegistry {
     }));
   }
 
-  /**
-   * Validates and runs a call. Every failure path returns a ToolResult so the
-   * model can read what went wrong and try again; nothing here throws.
-   */
-  async execute(name: string, input: unknown, ctx: ToolContext): Promise<ToolResult> {
+  async execute(
+    name: string,
+    input: unknown,
+    ctx: ToolContext,
+  ): Promise<ToolResult> {
     const tool = this.tools.get(name);
     if (!tool) {
       const known = [...this.tools.keys()].join(", ");
@@ -89,11 +88,8 @@ export class ToolRegistry {
   }
 }
 
-/**
- * The tools the agent runs with, in the order the model sees them. Read-only
- * tools come first so that a model scanning the list meets inspection before
- * mutation.
- */
+// Read-only tools first, so a model scanning the list meets inspection before
+// mutation.
 export function defaultTools(): Tool[] {
   return [listDir, readFileTool, search, editFile, writeFileTool, shell];
 }

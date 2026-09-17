@@ -1,3 +1,8 @@
+/**
+ * Tool dispatch: unknown names, schema violations and a throwing tool all have to
+ * come back as results the model can read, never as exceptions.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { ToolRegistry, defaultTools } from "../src/tools/registry.ts";
 import { ok, type Tool } from "../src/tools/tool.ts";
@@ -9,7 +14,10 @@ const echoTool: Tool = {
   inputSchema: {
     type: "object",
     required: ["message"],
-    properties: { message: { type: "string" }, count: { type: "integer", minimum: 1 } },
+    properties: {
+      message: { type: "string" },
+      count: { type: "integer", minimum: 1 },
+    },
     additionalProperties: false,
   },
   async execute(input) {

@@ -21,7 +21,6 @@ export interface OllamaOptions {
   baseUrl?: string;
 }
 
-/** A single message as Ollama's /api/chat expects it. */
 interface WireMessage {
   role: string;
   content: string;
@@ -68,12 +67,8 @@ export class OllamaModel implements Model {
       messages: request.messages.map(toWireMessage),
       tools: request.tools.map(toWireTool),
       stream: true,
-      /**
-       * Always requested. Sending think:false does not silence reasoning on
-       * every model; it merely stops the separation, and reasoning then
-       * arrives inside content with an unbalanced closing tag. Requesting it
-       * keeps the two channels apart and lets the CLI decide what to display.
-       */
+      // think:false does not silence reasoning, it only stops the separation:
+      // reasoning then arrives inside content with an unbalanced closing tag.
       think: true,
       options: {
         num_ctx: request.contextTokens ?? DEFAULT_CONTEXT_TOKENS,
@@ -147,16 +142,19 @@ export class OllamaModel implements Model {
     }
 
     for (const call of calls.drain()) {
-      yield { type: "tool_call", id: call.id, name: call.name, args: call.args };
+      yield {
+        type: "tool_call",
+        id: call.id,
+        name: call.name,
+        args: call.args,
+      };
     }
     yield { type: "done", stopReason };
   }
 }
 
-/**
- * Tool calls may arrive whole in a single chunk or split across chunks keyed
- * by index. Accumulating by index handles both without assuming either.
- */
+// Calls may arrive whole in one chunk or split across chunks keyed by index;
+// accumulating by index handles both without assuming either.
 class ToolCallAccumulator {
   private readonly byIndex = new Map<
     number,
@@ -172,7 +170,7 @@ class ToolCallAccumulator {
       const index = call.function?.index ?? position;
       const existing = this.byIndex.get(index) ?? { name: "", args: undefined };
       this.byIndex.set(index, {
-        ...(call.id ?? existing.id ? { id: call.id ?? existing.id } : {}),
+        ...((call.id ?? existing.id) ? { id: call.id ?? existing.id } : {}),
         name: call.function?.name ?? existing.name,
         args: call.function?.arguments ?? existing.args,
       });
@@ -192,7 +190,7 @@ class ToolCallAccumulator {
   }
 }
 
-/** Ollama sends an object; a JSON string is accepted for provider parity. */
+// Ollama sends an object; a JSON string is accepted for provider parity.
 function parseArgs(args: unknown): unknown {
   if (typeof args !== "string") return args ?? {};
   try {
@@ -238,7 +236,10 @@ function stringifyContent(content: unknown): string {
   return JSON.stringify(content);
 }
 
-function mapStopReason(reason: string | undefined, hadToolCalls: boolean): StopReason {
+function mapStopReason(
+  reason: string | undefined,
+  hadToolCalls: boolean,
+): StopReason {
   if (hadToolCalls) return "tool_calls";
   switch (reason) {
     case "length":
@@ -250,8 +251,9 @@ function mapStopReason(reason: string | undefined, hadToolCalls: boolean): StopR
   }
 }
 
-/** Splits an Ollama response body into JSON objects, one per line. */
-async function* readNdjson(body: ReadableStream<Uint8Array>): AsyncGenerator<WireChunk> {
+async function* readNdjson(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<WireChunk> {
   const decoder = new TextDecoder();
   let buffer = "";
 

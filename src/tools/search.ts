@@ -1,6 +1,6 @@
 /**
  * search: a ripgrep wrapper. This is how the model finds code without reading
- * whole files, so both the match count and the returned bytes are capped: an
+ * whole files, so the match count is capped before ok() caps the bytes: an
  * unbounded search is the fastest way to destroy a context window.
  */
 
@@ -27,10 +27,14 @@ export const search: Tool = {
     type: "object",
     required: ["pattern"],
     properties: {
-      pattern: { type: "string", description: "Regular expression to search for." },
+      pattern: {
+        type: "string",
+        description: "Regular expression to search for.",
+      },
       path: {
         type: "string",
-        description: 'File or directory to search, relative to the workspace root. Defaults to ".".',
+        description:
+          'File or directory to search, relative to the workspace root. Defaults to ".".',
       },
       glob: {
         type: "string",
@@ -85,7 +89,9 @@ export const search: Tool = {
         signal: AbortSignal.any([ctx.signal, timeout]),
       });
     } catch {
-      return fail("ripgrep (rg) is not installed or not on PATH.", { reason: "rg_missing" });
+      return fail("ripgrep (rg) is not installed or not on PATH.", {
+        reason: "rg_missing",
+      });
     }
 
     const [stdout, stderr, exitCode] = await Promise.all([
@@ -99,28 +105,35 @@ export const search: Tool = {
       return ok(`No matches for /${pattern}/ in ${path}.`, { matches: 0 });
     }
     if (exitCode !== 0 && exitCode !== 1) {
-      if (timeout.aborted) return fail(`search timed out after ${SEARCH_TIMEOUT_MS} ms.`);
+      if (timeout.aborted)
+        return fail(`search timed out after ${SEARCH_TIMEOUT_MS} ms.`);
       return fail(`search failed: ${stderr.trim() || `rg exited ${exitCode}`}`);
     }
 
     const lines = stdout.split("\n").filter((line) => line.length > 0);
-    const shown = lines.slice(0, max_results).map((line) => toWorkspaceRelative(line, ctx.workspace));
+    const shown = lines
+      .slice(0, max_results)
+      .map((line) => toWorkspaceRelative(line, ctx.workspace));
 
     const extra = lines.length - shown.length;
-    const footer = extra > 0 ? `\n... ${extra} more matching lines. Narrow the pattern or the glob.` : "";
+    const footer =
+      extra > 0
+        ? `\n... ${extra} more matching lines. Narrow the pattern or the glob.`
+        : "";
 
-    return ok(`${shown.join("\n")}${footer}`, { matches: lines.length, returned: shown.length });
+    return ok(`${shown.join("\n")}${footer}`, {
+      matches: lines.length,
+      returned: shown.length,
+    });
   },
 };
 
-/**
- * ripgrep echoes back whatever path it was given, which is absolute here. Each
- * output line is "path:line:text", so only the leading workspace prefix is
- * stripped; the rest of the line is matched text and must not be touched.
- */
+// Output lines are "path:line:text", so only the leading workspace prefix is
+// stripped; the rest is matched text and must not be touched.
 function toWorkspaceRelative(line: string, workspace: string): string {
   const prefix = `${workspace}/`;
   if (line.startsWith(prefix)) return line.slice(prefix.length);
-  if (line.startsWith(workspace)) return line.slice(workspace.length).replace(/^[/:]/, "");
+  if (line.startsWith(workspace))
+    return line.slice(workspace.length).replace(/^[/:]/, "");
   return line;
 }

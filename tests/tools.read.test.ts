@@ -1,3 +1,8 @@
+/**
+ * The read-only tools, and the workspace boundary they share: traversal,
+ * absolute paths and symlinks all have to be refused.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { listDir } from "../src/tools/list-dir.ts";
 import { readFileTool } from "../src/tools/read-file.ts";
@@ -14,7 +19,9 @@ describe("list_dir", () => {
     expect(result.ok).toBe(true);
     expect(result.content).toContain("src/");
     expect(result.content).toContain("package.json");
-    expect(result.content.indexOf("src/")).toBeLessThan(result.content.indexOf("package.json"));
+    expect(result.content.indexOf("src/")).toBeLessThan(
+      result.content.indexOf("package.json"),
+    );
   });
 
   test("defaults to the workspace root", async () => {
@@ -73,9 +80,15 @@ describe("read_file", () => {
 
   test("reads a window and says where to continue", async () => {
     const ws = await makeWorkspace();
-    await ws.write("many.txt", Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join("\n"));
+    await ws.write(
+      "many.txt",
+      Array.from({ length: 50 }, (_, i) => `line ${i + 1}`).join("\n"),
+    );
 
-    const result = await readFileTool.execute({ path: "many.txt", start_line: 10, max_lines: 5 }, ws.ctx);
+    const result = await readFileTool.execute(
+      { path: "many.txt", start_line: 10, max_lines: 5 },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(true);
     expect(result.content).toContain("10\tline 10");
@@ -96,7 +109,10 @@ describe("read_file", () => {
   test("rejects a traversal path outside the workspace", async () => {
     const ws = await makeWorkspace();
 
-    const result = await readFileTool.execute({ path: "../../../etc/hosts" }, ws.ctx);
+    const result = await readFileTool.execute(
+      { path: "../../../etc/hosts" },
+      ws.ctx,
+    );
 
     expect(result.ok).toBe(false);
     expect(result.content).toContain("outside the workspace");

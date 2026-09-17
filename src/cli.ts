@@ -30,7 +30,6 @@ interface Options {
   provider: string;
   resume?: string;
   listSessions: boolean;
-  /** Approves every request without asking. For non-interactive eval runs only. */
   autoApprove: boolean;
   showThinking: boolean;
   maxTurns?: number;
@@ -75,7 +74,8 @@ function parseArgs(argv: string[]): Options | { help: string } {
         options.maxTurns = Number(argv[++index]);
         break;
       default:
-        if (argument.startsWith("-")) return { help: `Unknown flag: ${argument}\n\n${usage()}` };
+        if (argument.startsWith("-"))
+          return { help: `Unknown flag: ${argument}\n\n${usage()}` };
         positional.push(argument);
     }
   }
@@ -110,7 +110,11 @@ async function main(): Promise<number> {
 
   if (parsed.listSessions) {
     const sessions = await listSessions(workspace);
-    console.log(sessions.length ? sessions.join("\n") : "No saved sessions in this workspace.");
+    console.log(
+      sessions.length
+        ? sessions.join("\n")
+        : "No saved sessions in this workspace.",
+    );
     return 0;
   }
 
@@ -136,8 +140,15 @@ async function main(): Promise<number> {
   let session: SessionState;
   if (parsed.resume) {
     session = await loadSession(workspace, parsed.resume);
-    if (parsed.task) session.messages.push({ role: "user", content: parsed.task });
-    console.log(style.dim(`Resuming session ${session.id} (${session.turns} turns so far)`));
+    if (parsed.task)
+      session.entries.push({
+        message: { role: "user", content: parsed.task },
+      });
+    console.log(
+      style.dim(
+        `Resuming session ${session.id} (${session.turns} turns so far)`,
+      ),
+    );
   } else {
     session = agent.start(parsed.task);
   }
@@ -147,7 +158,11 @@ async function main(): Promise<number> {
   const onInterrupt = () => {
     interrupts++;
     if (interrupts === 1) {
-      console.log(style.yellow("\nInterrupted. Stopping after the current operation; Ctrl-C again to quit."));
+      console.log(
+        style.yellow(
+          "\nInterrupted. Stopping after the current operation; Ctrl-C again to quit.",
+        ),
+      );
       controller.abort();
       return;
     }
@@ -175,7 +190,6 @@ async function main(): Promise<number> {
   return exitCode;
 }
 
-/** Tracks which stream was last written so the renderer can break lines sensibly. */
 let lastChannel: "thinking" | "text" | "other" = "other";
 
 function render(event: AgentEvent, showThinking: boolean): void {
@@ -207,7 +221,9 @@ function render(event: AgentEvent, showThinking: boolean): void {
       const marker = event.ok ? style.green("ok") : style.red("failed");
       const preview = event.content.split("\n").slice(0, 8).join("\n");
       const hidden = event.content.split("\n").length - 8;
-      console.log(`${marker} ${style.dim(preview)}${hidden > 0 ? style.dim(`\n  ... ${hidden} more lines`) : ""}`);
+      console.log(
+        `${marker} ${style.dim(preview)}${hidden > 0 ? style.dim(`\n  ... ${hidden} more lines`) : ""}`,
+      );
       lastChannel = "other";
       break;
     }
@@ -219,7 +235,9 @@ function render(event: AgentEvent, showThinking: boolean): void {
 
     case "done":
       breakLine();
-      console.log(style.dim(`--- ${event.reason} after ${event.turns} turns ---`));
+      console.log(
+        style.dim(`--- ${event.reason} after ${event.turns} turns ---`),
+      );
       break;
   }
 }
@@ -234,15 +252,8 @@ function summarizeArgs(args: unknown): string {
   return summary.length > 120 ? `${summary.slice(0, 117)}...` : summary;
 }
 
-/**
- * Per-call approval. Every gated action is shown in full and executes only on
- * an explicit yes; PDF §9. A session-level allowlist comes after this flow is
- * proven, not before.
- *
- * Anything other than an explicit yes is a denial, including a closed or
- * exhausted stdin. Failing closed matters more here than reporting the reason:
- * an approval prompt nobody can answer must not become an approval.
- */
+// Anything but an explicit yes denies, including a closed or exhausted stdin:
+// an approval prompt nobody can answer must not become an approval.
 async function askApproval(
   prompts: ReturnType<typeof createInterface>,
   request: ApprovalRequest,

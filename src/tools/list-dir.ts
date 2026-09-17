@@ -9,11 +9,15 @@ import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
 const MAX_ENTRIES = 200;
 
-/**
- * Directories that are large, generated, or both. The model can still reach
- * them by naming one explicitly; they are only hidden from a bare listing.
- */
-const NOISE = new Set(["node_modules", ".git", "dist", "build", ".next", "coverage"]);
+// Hidden from a bare listing only; naming one explicitly still reaches it.
+const NOISE = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "coverage",
+]);
 
 interface ListDirInput {
   path?: string;
@@ -29,7 +33,8 @@ export const listDir: Tool = {
     properties: {
       path: {
         type: "string",
-        description: 'Path relative to the workspace root. Defaults to "." (the root).',
+        description:
+          'Path relative to the workspace root. Defaults to "." (the root).',
       },
     },
     additionalProperties: false,
@@ -46,7 +51,8 @@ export const listDir: Tool = {
       entries = await readdir(resolved.path, { withFileTypes: true });
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code === "ENOTDIR") return fail(`${path} is a file, not a directory. Use read_file.`);
+      if (code === "ENOTDIR")
+        return fail(`${path} is a file, not a directory. Use read_file.`);
       if (code === "ENOENT") return fail(`no such directory: ${path}`);
       return fail(`cannot list ${path}: ${(error as Error).message}`);
     }
@@ -54,13 +60,16 @@ export const listDir: Tool = {
     const visible = entries
       .filter((entry) => !NOISE.has(entry.name))
       .sort((a, b) => {
-        if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+        if (a.isDirectory() !== b.isDirectory())
+          return a.isDirectory() ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
 
     const hidden = entries.length - visible.length;
     const shown = visible.slice(0, MAX_ENTRIES);
-    const lines = shown.map((entry) => (entry.isDirectory() ? `${entry.name}/` : entry.name));
+    const lines = shown.map((entry) =>
+      entry.isDirectory() ? `${entry.name}/` : entry.name,
+    );
 
     if (visible.length > MAX_ENTRIES) {
       lines.push(`... ${visible.length - MAX_ENTRIES} more entries not shown`);

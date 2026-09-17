@@ -10,25 +10,41 @@ import { join } from "node:path";
 import type { Message } from "../model/types.ts";
 
 const SESSION_DIR = ".infinity/sessions";
-const FORMAT_VERSION = 1;
+const FORMAT_VERSION = 2;
+
+/**
+ * A message plus what the loop knew about it and the model does not see. The
+ * flag cannot live on Message: that file is the provider boundary and no
+ * provider emits it.
+ */
+export interface SessionEntry {
+  message: Message;
+  // Present on tool entries: whether the call succeeded.
+  ok?: boolean;
+}
 
 export interface SessionState {
   version: number;
   id: string;
   workspace: string;
-  /** Provider-qualified model identifier, recorded for eval records. */
   model: string;
-  /** The task the session was started with. */
   task: string;
   createdAt: string;
   updatedAt: string;
-  messages: Message[];
-  /** Model turns consumed so far, carried across a resume. */
+  entries: SessionEntry[];
+  // Lifetime total, carried across a resume.
   turns: number;
 }
 
+export function messagesOf(session: SessionState): Message[] {
+  return session.entries.map((entry) => entry.message);
+}
+
 export function newSessionId(): string {
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..+/, "");
   return `${stamp}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
@@ -39,11 +55,17 @@ export function sessionPath(workspace: string, id: string): string {
 export async function saveSession(state: SessionState): Promise<void> {
   const path = sessionPath(state.workspace, state.id);
   await mkdir(join(state.workspace, SESSION_DIR), { recursive: true });
-  const serialized: SessionState = { ...state, updatedAt: new Date().toISOString() };
+  const serialized: SessionState = {
+    ...state,
+    updatedAt: new Date().toISOString(),
+  };
   await writeFile(path, `${JSON.stringify(serialized, null, 2)}\n`, "utf8");
 }
 
-export async function loadSession(workspace: string, id: string): Promise<SessionState> {
+export async function loadSession(
+  workspace: string,
+  id: string,
+): Promise<SessionState> {
   let raw: string;
   try {
     raw = await readFile(sessionPath(workspace, id), "utf8");
@@ -67,7 +89,7 @@ export async function loadSession(workspace: string, id: string): Promise<Sessio
   return parsed;
 }
 
-/** Session ids in the workspace, newest first. */
+// Newest first.
 export async function listSessions(workspace: string): Promise<string[]> {
   try {
     const files = await readdir(join(workspace, SESSION_DIR));
@@ -85,7 +107,7 @@ export function createSession(input: {
   workspace: string;
   model: string;
   task: string;
-  messages: Message[];
+  entries: SessionEntry[];
 }): SessionState {
   const now = new Date().toISOString();
   return {
@@ -96,7 +118,7 @@ export function createSession(input: {
     task: input.task,
     createdAt: now,
     updatedAt: now,
-    messages: input.messages,
+    entries: input.entries,
     turns: 0,
   };
 }

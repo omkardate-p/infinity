@@ -1,15 +1,15 @@
 /**
- * shell: runs a command in the workspace. The dangerous tool, so every bound is
- * explicit: the operator approves the exact command line, the process runs with
- * cwd inside the workspace, output is captured up to a byte ceiling, and the
- * process is killed on timeout or on Ctrl-C.
+ * shell: runs a command with cwd inside the workspace, killed on timeout or on
+ * Ctrl-C. resolvePath bounds the cwd and nothing else: no path check can stop
+ * `cat /etc/hosts`, so what a command reaches is bounded by the operator
+ * approving the exact command line, and by nothing else in this file.
  */
 
 import { fail, ok, resolvePath, type Tool, type ToolResult } from "./tool.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;
-/** Grace period between SIGTERM and SIGKILL for a process that ignores the first. */
+// Grace between SIGTERM and SIGKILL for a process that ignores the first.
 const KILL_GRACE_MS = 2_000;
 
 interface ShellInput {
@@ -28,10 +28,15 @@ export const shell: Tool = {
     type: "object",
     required: ["command"],
     properties: {
-      command: { type: "string", minLength: 1, description: "The command line to run." },
+      command: {
+        type: "string",
+        minLength: 1,
+        description: "The command line to run.",
+      },
       cwd: {
         type: "string",
-        description: 'Directory to run in, relative to the workspace root. Defaults to ".".',
+        description:
+          'Directory to run in, relative to the workspace root. Defaults to ".".',
       },
       timeout_ms: {
         type: "integer",
@@ -44,7 +49,11 @@ export const shell: Tool = {
   },
 
   async execute(input, ctx) {
-    const { command, cwd = ".", timeout_ms = DEFAULT_TIMEOUT_MS } = input as ShellInput;
+    const {
+      command,
+      cwd = ".",
+      timeout_ms = DEFAULT_TIMEOUT_MS,
+    } = input as ShellInput;
 
     const resolved = await resolvePath(ctx.workspace, cwd);
     if (!resolved.ok) return fail(resolved.reason, { reason: "path_rejected" });
@@ -55,9 +64,12 @@ export const shell: Tool = {
       ...(cwd === "." ? {} : { detail: `cwd: ${cwd}` }),
     });
     if (decision === "deny") {
-      return fail(`the operator denied running: ${command}. Nothing was executed.`, {
-        reason: "denied",
-      });
+      return fail(
+        `the operator denied running: ${command}. Nothing was executed.`,
+        {
+          reason: "denied",
+        },
+      );
     }
 
     let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
@@ -121,14 +133,20 @@ function render(run: {
   const body = sections.join("\n\n");
 
   if (run.outcome === "timeout") {
-    return fail(`command timed out after ${run.timeout_ms} ms and was killed: ${run.command}\n\n${body}`, {
-      reason: "timeout",
-      timeoutMs: run.timeout_ms,
-    });
+    return fail(
+      `command timed out after ${run.timeout_ms} ms and was killed: ${run.command}\n\n${body}`,
+      {
+        reason: "timeout",
+        timeoutMs: run.timeout_ms,
+      },
+    );
   }
 
   if (run.outcome === "aborted") {
-    return fail(`command was interrupted and killed: ${run.command}\n\n${body}`, { reason: "aborted" });
+    return fail(
+      `command was interrupted and killed: ${run.command}\n\n${body}`,
+      { reason: "aborted" },
+    );
   }
 
   const report = `exit code: ${run.exitCode}\n\n${body}`;

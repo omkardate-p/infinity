@@ -9,15 +9,21 @@
  */
 
 import type { Message, Model, ToolCall } from "../model/types.ts";
-import type { ApprovalDecision, ApprovalRequest, ToolContext } from "../tools/tool.ts";
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+  ToolContext,
+} from "../tools/tool.ts";
 import type { ToolRegistry } from "../tools/registry.ts";
-import { createSession, saveSession, type SessionState } from "./state.ts";
+import {
+  createSession,
+  messagesOf,
+  saveSession,
+  type SessionState,
+} from "./state.ts";
 
-/**
- * The working contract, and nothing else: what the agent may touch, how it is
- * expected to proceed, and what it may not claim. Resist growing this into an
- * attempt to make the model smarter; PDF §8.
- */
+// The working contract only. Growing this to paper over a runtime defect is
+// forbidden; PDF §8.
 export const SYSTEM_PROMPT = `You are a coding agent operating in the current workspace.
 
 Inspect before editing.
@@ -32,14 +38,10 @@ export interface AgentOptions {
   model: Model;
   registry: ToolRegistry;
   workspace: string;
-  /** Stops a runaway loop. Counted in model turns, not tool calls. */
   maxTurns?: number;
-  /**
-   * Consecutive denials tolerated before the run stops. Without this, a model
-   * that keeps proposing an action the operator will not allow can pin the
-   * operator in an approval loop.
-   */
-  maxConsecutiveDenials?: number;
+  // Counted for the whole run, not as a streak: an agent that reads a file
+  // between two refused commands is still pinning the operator.
+  maxDenials?: number;
   contextTokens?: number;
   requestApproval(request: ApprovalRequest): Promise<ApprovalDecision>;
 }
@@ -60,7 +62,6 @@ export type AgentStopReason =
   | "denial_limit"
   | "model_error";
 
-/** One model turn, as the loop needs it once the stream has finished. */
 interface TurnResult {
   assistant: Message;
   calls: ToolCall[];
@@ -68,7 +69,7 @@ interface TurnResult {
 }
 
 const DEFAULT_MAX_TURNS = 30;
-const DEFAULT_MAX_CONSECUTIVE_DENIALS = 3;
+const DEFAULT_MAX_DENIALS = 3;
 const DEFAULT_CONTEXT_TOKENS = 32768;
 
 export class Agent {
@@ -76,7 +77,7 @@ export class Agent {
   private readonly registry: ToolRegistry;
   private readonly workspace: string;
   private readonly maxTurns: number;
-  private readonly maxConsecutiveDenials: number;
+  private readonly maxDenials: number;
   private readonly contextTokens: number;
   private readonly requestApproval: AgentOptions["requestApproval"];
 
@@ -85,31 +86,30 @@ export class Agent {
     this.registry = options.registry;
     this.workspace = options.workspace;
     this.maxTurns = options.maxTurns ?? DEFAULT_MAX_TURNS;
-    this.maxConsecutiveDenials = options.maxConsecutiveDenials ?? DEFAULT_MAX_CONSECUTIVE_DENIALS;
+    this.maxDenials = options.maxDenials ?? DEFAULT_MAX_DENIALS;
     this.contextTokens = options.contextTokens ?? DEFAULT_CONTEXT_TOKENS;
     this.requestApproval = options.requestApproval;
   }
 
-  /** Starts a new session for a task. */
   start(task: string): SessionState {
     return createSession({
       workspace: this.workspace,
       model: this.model.id,
       task,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: task },
+      entries: [
+        { message: { role: "system", content: SYSTEM_PROMPT } },
+        { message: { role: "user", content: task } },
       ],
     });
   }
 
-  /**
-   * Runs the loop until the model stops calling tools, a limit is hit, or the
-   * signal aborts. The session is mutated in place and saved after every turn,
-   * so an interrupted run is still resumable.
-   */
-  async *run(session: SessionState, signal: AbortSignal): AsyncGenerator<AgentEvent> {
-    let consecutiveDenials = 0;
+  // The session is mutated in place and saved after every turn, so an
+  // interrupted run stays resumable.
+  async *run(
+    session: SessionState,
+    signal: AbortSignal,
+  ): AsyncGenerator<AgentEvent> {
+    let denials = 0;
     // Counted per run, not per session: session.turns is a lifetime total, and
     // a resumed session would otherwise start already over its budget.
     let turnsThisRun = 0;
@@ -138,7 +138,7 @@ export class Agent {
         return;
       }
 
-      session.messages.push(turn.assistant);
+      session.entries.push({ message: turn.assistant });
       await saveSession(session);
 
       if (turn.calls.length === 0) {
@@ -149,8 +149,17 @@ export class Agent {
       for (const call of turn.calls) {
         if (signal.aborted) break;
 
-        yield { type: "tool_start", id: call.id, name: call.name, args: call.args };
-        const result = await this.registry.execute(call.name, call.args, this.toolContext(signal));
+        yield {
+          type: "tool_start",
+          id: call.id,
+          name: call.name,
+          args: call.args,
+        };
+        const result = await this.registry.execute(
+          call.name,
+          call.args,
+          this.toolContext(signal),
+        );
         yield {
           type: "tool_end",
           id: call.id,
@@ -159,31 +168,28 @@ export class Agent {
           content: result.content,
         };
 
-        session.messages.push({
-          role: "tool",
-          content: result.content,
-          name: call.name,
-          toolCallId: call.id,
+        session.entries.push({
+          message: {
+            role: "tool",
+            content: result.content,
+            name: call.name,
+            toolCallId: call.id,
+          },
+          ok: result.ok,
         });
 
-        // Counted across turns, not within one, so a model that proposes a
-        // rejected action repeatedly still trips the limit.
-        consecutiveDenials = result.meta?.reason === "denied" ? consecutiveDenials + 1 : 0;
+        if (result.meta?.reason === "denied") denials++;
       }
 
       await saveSession(session);
 
-      if (consecutiveDenials >= this.maxConsecutiveDenials) {
+      if (denials >= this.maxDenials) {
         yield { type: "done", reason: "denial_limit", turns: session.turns };
         return;
       }
     }
   }
 
-  /**
-   * Streams one model turn, forwarding display events as they arrive and
-   * returning the assistant message that must be replayed on the next request.
-   */
   private async *streamTurn(
     session: SessionState,
     signal: AbortSignal,
@@ -194,7 +200,7 @@ export class Agent {
     let error: Error | undefined;
 
     const stream = this.model.stream({
-      messages: session.messages,
+      messages: messagesOf(session),
       tools: this.registry.specs(),
       contextTokens: this.contextTokens,
       signal,

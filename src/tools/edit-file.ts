@@ -24,13 +24,20 @@ export const editFile: Tool = {
     type: "object",
     required: ["path", "old_text", "new_text"],
     properties: {
-      path: { type: "string", description: "Path relative to the workspace root." },
+      path: {
+        type: "string",
+        description: "Path relative to the workspace root.",
+      },
       old_text: {
         type: "string",
         minLength: 1,
-        description: "Exact existing text to replace. Must occur exactly once in the file.",
+        description:
+          "Exact existing text to replace. Must occur exactly once in the file.",
       },
-      new_text: { type: "string", description: "Replacement text. May be empty to delete." },
+      new_text: {
+        type: "string",
+        description: "Replacement text. May be empty to delete.",
+      },
     },
     additionalProperties: false,
   },
@@ -42,16 +49,21 @@ export const editFile: Tool = {
     if (!resolved.ok) return fail(resolved.reason, { reason: "path_rejected" });
 
     if (old_text === new_text) {
-      return fail("old_text and new_text are identical, so this edit would do nothing.", {
-        reason: "no_op_edit",
-      });
+      return fail(
+        "old_text and new_text are identical, so this edit would do nothing.",
+        {
+          reason: "no_op_edit",
+        },
+      );
     }
 
     let contents: string;
     try {
       contents = await readFile(resolved.path, "utf8");
     } catch {
-      return fail(`no such file: ${path}. Use write_file to create it.`, { reason: "missing_file" });
+      return fail(`no such file: ${path}. Use write_file to create it.`, {
+        reason: "missing_file",
+      });
     }
 
     const occurrences = countOccurrences(contents, old_text);
@@ -76,9 +88,12 @@ export const editFile: Tool = {
       detail: renderDiff(contents, old_text, new_text),
     });
     if (decision === "deny") {
-      return fail(`the operator denied the edit to ${path}. The file is unchanged.`, {
-        reason: "denied",
-      });
+      return fail(
+        `the operator denied the edit to ${path}. The file is unchanged.`,
+        {
+          reason: "denied",
+        },
+      );
     }
 
     const updated = contents.replace(old_text, new_text);
@@ -88,12 +103,17 @@ export const editFile: Tool = {
       return fail(`cannot write ${path}: ${(error as Error).message}`);
     }
 
-    const lineOffset = contents.slice(0, contents.indexOf(old_text)).split("\n").length;
-    return ok(`Edited ${path} at line ${lineOffset}.`, { path, line: lineOffset });
+    const lineOffset = contents
+      .slice(0, contents.indexOf(old_text))
+      .split("\n").length;
+    return ok(`Edited ${path} at line ${lineOffset}.`, {
+      path,
+      line: lineOffset,
+    });
   },
 };
 
-/** Counts non-overlapping occurrences, which is what String.replace acts on. */
+// Non-overlapping, which is what the String.replace below acts on.
 function countOccurrences(haystack: string, needle: string): number {
   let count = 0;
   let index = haystack.indexOf(needle);
@@ -104,10 +124,16 @@ function countOccurrences(haystack: string, needle: string): number {
   return count;
 }
 
-/** A minimal before/after rendering for the approval prompt. */
-function renderDiff(contents: string, oldText: string, newText: string): string {
-  const startLine = contents.slice(0, contents.indexOf(oldText)).split("\n").length;
+function renderDiff(
+  contents: string,
+  oldText: string,
+  newText: string,
+): string {
+  const startLine = contents
+    .slice(0, contents.indexOf(oldText))
+    .split("\n").length;
   const removed = oldText.split("\n").map((line) => `- ${line}`);
-  const added = newText === "" ? [] : newText.split("\n").map((line) => `+ ${line}`);
+  const added =
+    newText === "" ? [] : newText.split("\n").map((line) => `+ ${line}`);
   return [`@@ line ${startLine} @@`, ...removed, ...added].join("\n");
 }

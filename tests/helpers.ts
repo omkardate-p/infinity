@@ -7,11 +7,14 @@
 import { mkdtemp, mkdir, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { ApprovalDecision, ApprovalRequest, ToolContext } from "../src/tools/tool.ts";
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+  ToolContext,
+} from "../src/tools/tool.ts";
 
 export interface TestWorkspace {
   root: string;
-  /** Approval requests seen so far, in order. */
   approvals: ApprovalRequest[];
   ctx: ToolContext;
   write(relativePath: string, contents: string): Promise<string>;
