@@ -18,7 +18,14 @@ import { join } from "node:path";
 import { Agent, type AgentEvent } from "../src/agent/agent.ts";
 import { createModel } from "../src/model/model.ts";
 import { ToolRegistry, defaultTools } from "../src/tools/registry.ts";
-import type { FixtureMeta, Transcript, VerifyContext, Verifier, VerifyResult } from "./types.ts";
+import type {
+  Approver,
+  FixtureMeta,
+  Transcript,
+  VerifyContext,
+  Verifier,
+  VerifyResult,
+} from "./types.ts";
 
 const FIXTURES_DIR = join(import.meta.dir, "fixtures");
 const DEFAULT_MODEL = "ornith:9b";
@@ -70,7 +77,8 @@ function parseArgs(argv: string[]): Options {
     if (argument === "--model") options.model = argv[++index]!;
     else if (argument === "--provider") options.provider = argv[++index]!;
     else if (argument === "--repeats") options.repeats = Number(argv[++index]);
-    else if (argument === "--max-turns") options.maxTurns = Number(argv[++index]);
+    else if (argument === "--max-turns")
+      options.maxTurns = Number(argv[++index]);
     else if (argument === "--fast") options.fastOnly = true;
     else if (argument === "--out") options.out = argv[++index]!;
     else if (argument === "--task") options.only.push(argv[++index]!);
@@ -79,12 +87,18 @@ function parseArgs(argv: string[]): Options {
         [
           "Usage: bun run evals/run.ts [options]",
           "",
-          "  --model <name>    Model to evaluate (default: " + DEFAULT_MODEL + ")",
+          "  --model <name>    Model to evaluate (default: " +
+            DEFAULT_MODEL +
+            ")",
           "  --provider <name> Model provider (default: ollama)",
-          "  --repeats <n>     Runs per task (default: " + DEFAULT_REPEATS + ")",
+          "  --repeats <n>     Runs per task (default: " +
+            DEFAULT_REPEATS +
+            ")",
           "  --fast            Only the fast subset, for iteration",
           "  --task <name>     Run one fixture; repeatable",
-          "  --max-turns <n>   Turn budget per run (default: " + DEFAULT_MAX_TURNS + ")",
+          "  --max-turns <n>   Turn budget per run (default: " +
+            DEFAULT_MAX_TURNS +
+            ")",
           "  --out <path>      Write the run records as JSON",
         ].join("\n"),
       );
@@ -98,6 +112,7 @@ interface LoadedFixture {
   meta: FixtureMeta;
   task: string;
   verify: Verifier;
+  approve: Approver | undefined;
   repo: string;
 }
 
@@ -116,6 +131,7 @@ async function loadFixtures(options: Options): Promise<LoadedFixture[]> {
       meta: FixtureMeta;
       task: string;
       verify: Verifier;
+      approve?: Approver;
     };
     if (options.fastOnly && !module.meta.fast) continue;
 
@@ -123,6 +139,7 @@ async function loadFixtures(options: Options): Promise<LoadedFixture[]> {
       meta: module.meta,
       task: module.task,
       verify: module.verify,
+      approve: module.approve,
       repo: join(dir, "repo"),
     });
   }
@@ -134,7 +151,9 @@ async function runOnce(
   attempt: number,
   options: Options,
 ): Promise<RunRecord> {
-  const workspace = await mkdtemp(join(tmpdir(), `infinity-eval-${fixture.meta.name}-`));
+  const workspace = await mkdtemp(
+    join(tmpdir(), `infinity-eval-${fixture.meta.name}-`),
+  );
   const started = Date.now();
 
   const events: AgentEvent[] = [];
@@ -154,9 +173,7 @@ async function runOnce(
       registry: new ToolRegistry(defaultTools()),
       workspace,
       maxTurns: options.maxTurns,
-      // Evals run unattended, so approval cannot be interactive here. The
-      // approval path itself is covered by the runtime tests, not by evals.
-      requestApproval: async () => "allow",
+      requestApproval: async (request) => fixture.approve?.(request) ?? "allow",
     });
 
     const controller = new AbortController();
@@ -171,7 +188,10 @@ async function runOnce(
           toolCalls[event.name] = (toolCalls[event.name] ?? 0) + 1;
         }
         if (event.type === "tool_end" && !event.ok) {
-          if (event.content.includes("unknown tool") || event.content.includes("invalid arguments")) {
+          if (
+            event.content.includes("unknown tool") ||
+            event.content.includes("invalid arguments")
+          ) {
             malformedCalls++;
           }
           if (event.name === "edit_file") failedEdits++;
@@ -193,7 +213,11 @@ async function runOnce(
       stopReason: stopReason as Transcript["stopReason"],
     };
 
-    const verdict = await verifySafely(fixture.verify, { repo: workspace, transcript, run: runner(workspace) });
+    const verdict = await verifySafely(fixture.verify, {
+      repo: workspace,
+      transcript,
+      run: runner(workspace),
+    });
 
     return {
       task: fixture.meta.name,
@@ -215,7 +239,10 @@ async function runOnce(
 }
 
 /** A verifier that throws is a broken fixture, and must not abort the sweep. */
-async function verifySafely(verify: Verifier, ctx: VerifyContext): Promise<VerifyResult> {
+async function verifySafely(
+  verify: Verifier,
+  ctx: VerifyContext,
+): Promise<VerifyResult> {
   try {
     return await verify(ctx);
   } catch (error) {
@@ -251,7 +278,10 @@ function summarize(records: RunRecord[]): void {
     const passes = runs.filter((run) => run.passed).length;
     const meanTurns = mean(runs.map((run) => run.turns));
     const meanSeconds = mean(runs.map((run) => run.elapsedMs)) / 1000;
-    const malformed = runs.reduce((total, run) => total + run.malformedCalls, 0);
+    const malformed = runs.reduce(
+      (total, run) => total + run.malformedCalls,
+      0,
+    );
     const badEdits = runs.reduce((total, run) => total + run.failedEdits, 0);
 
     console.log(
@@ -269,7 +299,9 @@ function summarize(records: RunRecord[]): void {
 }
 
 function mean(values: number[]): number {
-  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+  return values.length
+    ? values.reduce((total, value) => total + value, 0) / values.length
+    : 0;
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -287,7 +319,9 @@ console.log(
 const records: RunRecord[] = [];
 for (const fixture of fixtures) {
   for (let attempt = 1; attempt <= options.repeats; attempt++) {
-    process.stdout.write(`running ${fixture.meta.name} (${attempt}/${options.repeats}) ... `);
+    process.stdout.write(
+      `running ${fixture.meta.name} (${attempt}/${options.repeats}) ... `,
+    );
     const record = await runOnce(fixture, attempt, options);
     records.push(record);
     console.log(
@@ -299,7 +333,11 @@ for (const fixture of fixtures) {
 summarize(records);
 
 if (options.out) {
-  await writeFile(options.out, `${JSON.stringify({ model: options.model, records }, null, 2)}\n`, "utf8");
+  await writeFile(
+    options.out,
+    `${JSON.stringify({ model: options.model, records }, null, 2)}\n`,
+    "utf8",
+  );
   console.log(`\nwrote ${options.out}`);
 }
 

@@ -6,6 +6,7 @@
  */
 
 import type { AgentEvent, AgentStopReason } from "../src/agent/agent.ts";
+import type { ApprovalDecision, ApprovalRequest } from "../src/tools/tool.ts";
 
 export interface Transcript {
   events: AgentEvent[];
@@ -20,7 +21,9 @@ export interface VerifyContext {
   repo: string;
   transcript: Transcript;
   /** Runs a command in the repo and returns its exit code and output. */
-  run(command: string): Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  run(
+    command: string,
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }>;
 }
 
 export interface VerifyResult {
@@ -30,6 +33,15 @@ export interface VerifyResult {
 }
 
 export type Verifier = (ctx: VerifyContext) => Promise<VerifyResult>;
+
+/**
+ * How the fixture answers approval requests. Fixtures run unattended and allow
+ * everything by default. A fixture supplies this only when the behaviour under
+ * test is what happens when the operator says no, which for shell is the only
+ * control there is: the workspace boundary constrains the file tools, and a
+ * command's reach is bounded by the operator, not by resolvePath.
+ */
+export type Approver = (request: ApprovalRequest) => ApprovalDecision;
 
 export interface FixtureMeta {
   /** Directory name under evals/fixtures. */

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FixtureMeta, Verifier } from "../../types.ts";
+import { failureLine } from "../../checks.ts";
 
 export const meta: FixtureMeta = {
   name: "add-feature-with-test",
@@ -15,7 +16,7 @@ export const task =
 
 export const verify: Verifier = async ({ repo, run }) => {
   const tests = await run("bun test");
-  if (tests.exitCode !== 0) return { ok: false, reason: "the suite does not pass" };
+  if (tests.exitCode !== 0) return { ok: false, reason: `the suite does not pass: ${failureLine(tests)}` };
 
   const source = await readFile(join(repo, "src/numbers.ts"), "utf8");
   if (!/export\s+function\s+clamp/.test(source)) {
