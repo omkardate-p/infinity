@@ -1,0 +1,1 @@
+{ "name": "booking", "type": "module", "private": true, "scripts": { "test": "bun test" } }
