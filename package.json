@@ -1,0 +1,21 @@
+{
+  "name": "infinity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "infinity": "./src/cli.ts"
+  },
+  "scripts": {
+    "infinity": "bun run src/cli.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0"
+  }
+}
