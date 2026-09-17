@@ -68,7 +68,7 @@ The runtime does not know which model it talks to. Breaking one of these defeats
 - `src/model/types.ts` is the provider boundary. A field belongs there only if a second provider needs it too; if it exists because Ollama emits it, it lives in `src/providers/`. `src/agent/` never imports a provider, and a new provider is one file plus one `case` in `createModel`. If adding one forces a change inside `src/agent/`, the abstraction is wrong — that is the finding, and it is fixed first.
 - `resolvePath()` is the only way a tool resolves a path — not `join`, not `resolve`, not a hand-rolled `startsWith`.
 - A tool returns `ok()` or `fail()` and never throws past the registry. The registry validates input; the tool does not.
-- `requiresApproval: true` means await `ctx.requestApproval` before acting, then `fail(..., { reason: "denied" })` on refusal. The loop counts denials on that exact string; change it and the runaway guard dies silently.
+- A tool that changes the workspace or runs a command awaits `ctx.requestApproval` itself before acting, then `fail(..., { reason: "denied" })` on refusal. The tool asks, not the loop, because only the tool has the diff or the command line to show. The loop counts denials on that exact string; change it and the runaway guard dies silently.
 - Touching `SessionState` or `Message` means bumping `FORMAT_VERSION`. Sessions on disk are a format.
 - Tests never call a model. A behaviour only observable against Ollama is reported as checked by hand.
 

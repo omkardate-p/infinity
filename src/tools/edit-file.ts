@@ -20,7 +20,6 @@ export const editFile: Tool = {
     "Replace an exact, unique run of text in a file. old_text must match the file " +
     "byte for byte, including indentation, and must appear exactly once. Include " +
     "surrounding lines to make it unique. Read the file first.",
-  requiresApproval: true,
   inputSchema: {
     type: "object",
     required: ["path", "old_text", "new_text"],

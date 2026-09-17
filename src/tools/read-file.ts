@@ -22,7 +22,6 @@ export const readFileTool: Tool = {
   description:
     "Read a file inside the workspace. Returns numbered lines. " +
     "For a long file, read a window with start_line and max_lines.",
-  requiresApproval: false,
   inputSchema: {
     type: "object",
     required: ["path"],

@@ -4,10 +4,9 @@
  * unbounded search is the fastest way to destroy a context window.
  */
 
-import { bound, fail, ok, resolvePath, type Tool } from "./tool.ts";
+import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
 const DEFAULT_MAX_RESULTS = 60;
-const MAX_MATCH_BYTES = 12_000;
 const SEARCH_TIMEOUT_MS = 20_000;
 
 interface SearchInput {
@@ -24,7 +23,6 @@ export const search: Tool = {
     "Search file contents in the workspace with ripgrep and return matching lines " +
     "with their file and line number. Prefer this over reading files when looking " +
     "for where something is defined or used.",
-  requiresApproval: false,
   inputSchema: {
     type: "object",
     required: ["pattern"],
@@ -108,16 +106,10 @@ export const search: Tool = {
     const lines = stdout.split("\n").filter((line) => line.length > 0);
     const shown = lines.slice(0, max_results).map((line) => toWorkspaceRelative(line, ctx.workspace));
 
-    const bounded = bound(shown.join("\n"), MAX_MATCH_BYTES);
     const extra = lines.length - shown.length;
     const footer = extra > 0 ? `\n... ${extra} more matching lines. Narrow the pattern or the glob.` : "";
 
-    return {
-      ok: true,
-      content: `${bounded.content}${footer}`,
-      ...(bounded.truncated || extra > 0 ? { truncated: true } : {}),
-      meta: { matches: lines.length, returned: shown.length },
-    };
+    return ok(`${shown.join("\n")}${footer}`, { matches: lines.length, returned: shown.length });
   },
 };
 

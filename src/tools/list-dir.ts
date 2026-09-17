@@ -24,7 +24,6 @@ export const listDir: Tool = {
   description:
     "List the files and directories at a path inside the workspace. " +
     'Use "." for the workspace root. Directories are marked with a trailing slash.',
-  requiresApproval: false,
   inputSchema: {
     type: "object",
     properties: {

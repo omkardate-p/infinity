@@ -20,7 +20,6 @@ export const writeFileTool: Tool = {
   description:
     "Create a file, or replace an existing file's entire contents, inside the " +
     "workspace. To change part of a file that already exists, use edit_file instead.",
-  requiresApproval: true,
   inputSchema: {
     type: "object",
     required: ["path", "content"],

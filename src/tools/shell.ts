@@ -5,11 +5,10 @@
  * process is killed on timeout or on Ctrl-C.
  */
 
-import { bound, fail, resolvePath, type Tool, type ToolResult } from "./tool.ts";
+import { fail, ok, resolvePath, type Tool, type ToolResult } from "./tool.ts";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_TIMEOUT_MS = 600_000;
-const MAX_OUTPUT_BYTES = 20_000;
 /** Grace period between SIGTERM and SIGKILL for a process that ignores the first. */
 const KILL_GRACE_MS = 2_000;
 
@@ -25,7 +24,6 @@ export const shell: Tool = {
     "Run a shell command inside the workspace and return its exit code, stdout " +
     "and stderr. Use this to run tests, builds and version control commands. " +
     "The command is killed if it exceeds its timeout.",
-  requiresApproval: true,
   inputSchema: {
     type: "object",
     required: ["command"],
@@ -120,33 +118,21 @@ function render(run: {
   if (run.stderr.trim()) sections.push(`stderr:\n${run.stderr.trimEnd()}`);
   if (sections.length === 0) sections.push("(no output)");
 
-  const body = bound(sections.join("\n\n"), MAX_OUTPUT_BYTES);
+  const body = sections.join("\n\n");
 
   if (run.outcome === "timeout") {
-    return {
-      ok: false,
-      content:
-        `Error: command timed out after ${run.timeout_ms} ms and was killed: ${run.command}\n\n` +
-        body.content,
-      ...(body.truncated ? { truncated: true } : {}),
-      meta: { reason: "timeout", timeoutMs: run.timeout_ms },
-    };
+    return fail(`command timed out after ${run.timeout_ms} ms and was killed: ${run.command}\n\n${body}`, {
+      reason: "timeout",
+      timeoutMs: run.timeout_ms,
+    });
   }
 
   if (run.outcome === "aborted") {
-    return {
-      ok: false,
-      content: `Error: command was interrupted and killed: ${run.command}\n\n${body.content}`,
-      ...(body.truncated ? { truncated: true } : {}),
-      meta: { reason: "aborted" },
-    };
+    return fail(`command was interrupted and killed: ${run.command}\n\n${body}`, { reason: "aborted" });
   }
 
-  const succeeded = run.exitCode === 0;
-  return {
-    ok: succeeded,
-    content: `exit code: ${run.exitCode}\n\n${body.content}`,
-    ...(body.truncated ? { truncated: true } : {}),
-    meta: { exitCode: run.exitCode },
-  };
+  const report = `exit code: ${run.exitCode}\n\n${body}`;
+  return run.exitCode === 0
+    ? ok(report, { exitCode: run.exitCode })
+    : fail(report, { exitCode: run.exitCode });
 }

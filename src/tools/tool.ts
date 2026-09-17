@@ -4,6 +4,9 @@
  * agent loop never calls a tool's execute() without validating input first.
  */
 
+import { dirname, isAbsolute, resolve } from "node:path";
+import { realpath } from "node:fs/promises";
+
 export interface ToolResult {
   /** False for any outcome the model should treat as a failed action. */
   ok: boolean;
@@ -45,11 +48,6 @@ export interface Tool {
   description: string;
   /** JSON Schema for the input object. Sent to the model and used to validate. */
   inputSchema: Record<string, unknown>;
-  /**
-   * True for tools that change the workspace or run commands. The agent asks
-   * for approval before executing these.
-   */
-  requiresApproval: boolean;
   execute(input: unknown, ctx: ToolContext): Promise<ToolResult>;
 }
 
@@ -118,13 +116,6 @@ export async function resolvePath(
   workspace: string,
   input: string,
 ): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
-  const { isAbsolute, resolve, dirname } = await import("node:path");
-  const { realpath } = await import("node:fs/promises");
-
-  if (typeof input !== "string" || input.length === 0) {
-    return { ok: false, reason: "path must be a non-empty string" };
-  }
-
   const root = await realpath(workspace);
   const candidate = isAbsolute(input) ? resolve(input) : resolve(root, input);
 

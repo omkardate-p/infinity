@@ -6,7 +6,6 @@ import { makeWorkspace } from "./helpers.ts";
 const echoTool: Tool = {
   name: "echo",
   description: "Echo a message back.",
-  requiresApproval: false,
   inputSchema: {
     type: "object",
     required: ["message"],

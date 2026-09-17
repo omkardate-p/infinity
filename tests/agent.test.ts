@@ -44,7 +44,6 @@ class ScriptedModel implements Model {
 const noteTool: Tool = {
   name: "note",
   description: "Record a note and return it.",
-  requiresApproval: false,
   inputSchema: {
     type: "object",
     required: ["text"],
@@ -62,7 +61,6 @@ function makeBrittleTool(): Tool {
   return {
     name: "brittle",
     description: "Fails the first time it is called, then succeeds.",
-    requiresApproval: false,
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     async execute() {
       return ++calls === 1 ? fail("transient failure; try again") : ok("recovered");
@@ -73,7 +71,6 @@ function makeBrittleTool(): Tool {
 const gatedTool: Tool = {
   name: "gated",
   description: "Requires approval before doing anything.",
-  requiresApproval: true,
   inputSchema: { type: "object", properties: {}, additionalProperties: false },
   async execute(_input, ctx) {
     const decision = await ctx.requestApproval({ tool: "gated", summary: "do the thing" });

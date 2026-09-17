@@ -45,9 +45,9 @@ describe("search", () => {
     const result = await search.execute({ pattern: "needle", max_results: 5 }, ws.ctx);
 
     expect(result.ok).toBe(true);
-    expect(result.truncated).toBe(true);
     expect(result.meta?.returned).toBe(5);
-    expect(result.content).toContain("more matching lines");
+    expect(result.meta?.matches).toBe(120);
+    expect(result.content).toContain("115 more matching lines");
   });
 
   test("rejects searching outside the workspace", async () => {
