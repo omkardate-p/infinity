@@ -7,8 +7,8 @@ import { describe, expect, test } from "bun:test";
 import {
   createSession,
   loadSession,
-  saveSession,
   type SessionEntry,
+  saveSession,
 } from "../src/agent/state.ts";
 import { restore } from "../tui/history.ts";
 import { makeWorkspace } from "./helpers.ts";
@@ -39,7 +39,9 @@ const conversation: SessionEntry[] = [
     message: {
       role: "assistant",
       content: "",
-      toolCalls: [{ id: "call_2", name: "shell", args: { command: "bun test" } }],
+      toolCalls: [
+        { id: "call_2", name: "shell", args: { command: "bun test" } },
+      ],
     },
   },
   {
@@ -57,7 +59,11 @@ describe("restore", () => {
   test("the working contract is not part of the conversation", () => {
     const view = restore(conversation);
 
-    expect(view.committed.some((item) => item.kind === "user" && item.text.includes("contract"))).toBe(false);
+    expect(
+      view.committed.some(
+        (item) => item.kind === "user" && item.text.includes("contract"),
+      ),
+    ).toBe(false);
   });
 
   test("a tool call is paired with the arguments that requested it", () => {
@@ -122,11 +128,12 @@ describe("restore", () => {
     });
     await saveSession(session);
 
-    const view = restore((await loadSession(workspace.root, session.id)).entries);
+    const view = restore(
+      (await loadSession(workspace.root, session.id)).entries,
+    );
 
-    expect(view.committed.filter((item) => item.kind === "tool")).toMatchObject([
-      { status: "ok" },
-      { status: "failed" },
-    ]);
+    expect(view.committed.filter((item) => item.kind === "tool")).toMatchObject(
+      [{ status: "ok" }, { status: "failed" }],
+    );
   });
 });

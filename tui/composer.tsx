@@ -8,22 +8,22 @@
  * never a row of Enter presses.
  */
 
-import { useEffect, useRef, useState } from "react";
 import { useBlur, useFocus, useKeyboard, usePaste } from "@opentui/react";
-import { composerLines, opaqueLines, styledText } from "./lines.ts";
+import { useEffect, useRef, useState } from "react";
 import {
+  type Buffer,
   backspace,
-  emptyBuffer,
   deleteForward,
   down,
+  emptyBuffer,
   insert,
   left,
   lineEnd,
   lineStart,
   right,
   up,
-  type Buffer,
 } from "./editor.ts";
+import { composerLines, opaqueLines, styledText } from "./lines.ts";
 
 export function Composer({
   buffer,

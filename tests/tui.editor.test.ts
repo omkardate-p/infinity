@@ -5,20 +5,19 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { opaque } from "../tui/format.ts";
 import {
+  type Buffer,
   backspace,
   deleteForward,
   down,
-  emptyBuffer,
   insert,
   left,
   lineEnd,
   lineStart,
   right,
   up,
-  type Buffer,
 } from "../tui/editor.ts";
+import { opaque } from "../tui/format.ts";
 
 /** "ab|c" means the cursor sits between b and c. */
 function parse(marked: string): Buffer {
@@ -27,9 +26,7 @@ function parse(marked: string): Buffer {
 }
 
 function show(buffer: Buffer): string {
-  return (
-    buffer.text.slice(0, buffer.cursor) + "|" + buffer.text.slice(buffer.cursor)
-  );
+  return `${buffer.text.slice(0, buffer.cursor)}|${buffer.text.slice(buffer.cursor)}`;
 }
 
 describe("typing", () => {

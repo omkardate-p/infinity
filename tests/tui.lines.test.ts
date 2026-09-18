@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { itemLines, lineText } from "../tui/lines.ts";
 import { cells } from "../tui/format.ts";
+import { itemLines, lineText } from "../tui/lines.ts";
 import {
   commitUser,
   empty,
@@ -170,8 +170,7 @@ describe("transcript lines", () => {
 
     expect(view[0]).toBe(">_ infinity v0.0.0");
     expect(view.join("\n")).toContain("ollama/ornith:9b");
-    for (const line of view)
-      expect(cells(line)).toBeLessThanOrEqual(WIDTH);
+    for (const line of view) expect(cells(line)).toBeLessThanOrEqual(WIDTH);
     // No box: nothing here draws a border.
     expect(view.join("")).not.toContain("╭");
     expect(view.join("")).not.toContain("│");

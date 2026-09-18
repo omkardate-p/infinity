@@ -5,6 +5,7 @@
  * is still inspectable.
  */
 
+import type { Stats } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
@@ -26,7 +27,10 @@ export const readFileTool: Tool = {
     type: "object",
     required: ["path"],
     properties: {
-      path: { type: "string", description: "Path relative to the workspace root." },
+      path: {
+        type: "string",
+        description: "Path relative to the workspace root.",
+      },
       start_line: {
         type: "integer",
         minimum: 1,
@@ -42,18 +46,23 @@ export const readFileTool: Tool = {
   },
 
   async execute(input, ctx) {
-    const { path, start_line = 1, max_lines = DEFAULT_MAX_LINES } = input as ReadFileInput;
+    const {
+      path,
+      start_line = 1,
+      max_lines = DEFAULT_MAX_LINES,
+    } = input as ReadFileInput;
 
     const resolved = await resolvePath(ctx.workspace, path);
     if (!resolved.ok) return fail(resolved.reason, { reason: "path_rejected" });
 
-    let info;
+    let info: Stats;
     try {
       info = await stat(resolved.path);
     } catch {
       return fail(`no such file: ${path}`);
     }
-    if (info.isDirectory()) return fail(`${path} is a directory. Use list_dir.`);
+    if (info.isDirectory())
+      return fail(`${path} is a directory. Use list_dir.`);
     if (info.size > MAX_FILE_BYTES) {
       return fail(
         `${path} is ${info.size} bytes, over the ${MAX_FILE_BYTES} byte limit. ` +
@@ -62,7 +71,7 @@ export const readFileTool: Tool = {
     }
     if (info.size === 0) return ok(`${path} is empty.`, { lines: 0 });
 
-    let text;
+    let text: string;
     try {
       text = await readFile(resolved.path, "utf8");
     } catch (error) {
@@ -74,22 +83,32 @@ export const readFileTool: Tool = {
     if (lines.at(-1) === "") lines.pop();
 
     if (start_line > lines.length) {
-      return fail(`${path} has ${lines.length} lines; start_line ${start_line} is past the end.`);
+      return fail(
+        `${path} has ${lines.length} lines; start_line ${start_line} is past the end.`,
+      );
     }
 
     const from = start_line - 1;
     const window = lines.slice(from, from + max_lines);
     const width = String(from + window.length).length;
     const numbered = window
-      .map((line, index) => `${String(from + index + 1).padStart(width)}\t${line}`)
+      .map(
+        (line, index) => `${String(from + index + 1).padStart(width)}\t${line}`,
+      )
       .join("\n");
 
     const remaining = lines.length - (from + window.length);
-    const footer = remaining > 0 ? `\n... ${remaining} more lines. Continue at start_line ${from + window.length + 1}.` : "";
+    const footer =
+      remaining > 0
+        ? `\n... ${remaining} more lines. Continue at start_line ${from + window.length + 1}.`
+        : "";
 
-    return ok(`${path} (lines ${from + 1}-${from + window.length} of ${lines.length}):\n${numbered}${footer}`, {
-      totalLines: lines.length,
-      returnedLines: window.length,
-    });
+    return ok(
+      `${path} (lines ${from + 1}-${from + window.length} of ${lines.length}):\n${numbered}${footer}`,
+      {
+        totalLines: lines.length,
+        returnedLines: window.length,
+      },
+    );
   },
 };

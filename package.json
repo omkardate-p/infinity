@@ -9,9 +9,18 @@
   "scripts": {
     "infinity": "bun run src/cli.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun run lint && bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "clean": "rm -rf node_modules",
+    "evals": "bun run evals/run.ts",
+    "evals:fast": "bun run evals/run.ts --fast"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@types/bun": "latest",
     "@types/react": "^19.3.0",
     "typescript": "^7.0.2"

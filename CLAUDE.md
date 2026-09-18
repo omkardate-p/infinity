@@ -84,11 +84,13 @@ The runtime does not know which model it talks to. Breaking one of these defeats
 
 - Imports carry the `.ts` extension; nothing compiles the output.
 - `exactOptionalPropertyTypes` is on: set an optional field with `...(value !== undefined ? { key: value } : {})`, never `key: value ?? undefined`.
-- No linter and no formatter. Do not add one.
+- Biome owns formatting and the rules a tool can decide mechanically; `biome.json` is the whole configuration. Do not argue with it in review, and do not hand-format around it. ESLint cannot be used here: typescript-eslint refuses to load against TypeScript 7.
+- Biome does not read `evals/fixtures/`. A fixture's repo is an input, not this project's source: some of it is deliberately broken, one file does not parse at all, and formatting it rewrites the thing the eval measures.
+- A rule that contradicts the compiler is turned off rather than worked around. `noNonNullAssertion` is off because `noUncheckedIndexedAccess` makes `!` the idiom for an index that was just bounds-checked.
 
 ## Finish
 
-1. `bun run typecheck`
-2. `bun test`, or `bun test tests/<file>` while iterating.
+1. `bun run check` — typecheck, lint and tests. `bun test tests/<file>` while iterating.
+2. `bun run format` before you report, so the diff is the change and not whitespace.
 3. **Prove it.** For anything touching the loop, the CLI, or a tool, run it: `bun run infinity --yes --max-turns 2 "<task>"` **in a scratch directory, never in this repo** — the workspace is `process.cwd()` and the agent writes to it. `bun run evals/run.ts --fast` is the broader check. Only one model fits in memory at a time; never run two. State what you ran and what you saw; "should work" is not verification.
 4. Re-scan your diff, then report it.

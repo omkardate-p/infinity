@@ -13,8 +13,8 @@
  * item rather than handing them to the renderer and forgetting them.
  */
 
-import { TextRenderable, type CliRenderer } from "@opentui/core";
-import { itemLines, styledText, type Line } from "./lines.ts";
+import { type CliRenderer, TextRenderable } from "@opentui/core";
+import { itemLines, type Line, styledText } from "./lines.ts";
 import type { TranscriptItem } from "./view-model.ts";
 
 export function commitLines(renderer: CliRenderer, lines: Line[]): void {

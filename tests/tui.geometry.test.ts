@@ -19,11 +19,11 @@ import {
   composerRows,
   footerPlan,
   itemLines,
+  type Line,
   lineText,
   lineWidth,
   promptLines,
   styledText,
-  type Line,
 } from "../tui/lines.ts";
 import type { TranscriptItem } from "../tui/view-model.ts";
 
@@ -212,9 +212,9 @@ describe("the renderer draws the rows the layout counted", () => {
     // captureSpans, not captureCharFrame: the char frame slices a flat array of
     // cells into rows, so a row holding a wide glyph comes back short and every
     // row after it is misaligned.
-    const rows = setup.captureSpans().lines.map((line) =>
-      line.spans.map((span) => span.text).join(""),
-    );
+    const rows = setup
+      .captureSpans()
+      .lines.map((line) => line.spans.map((span) => span.text).join(""));
     const at = rows.findIndex((row) => row.includes(SENTINEL));
     expect(at).toBeGreaterThanOrEqual(0);
     return at;

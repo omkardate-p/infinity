@@ -4,7 +4,12 @@
  * about to happen and how much content is being discarded.
  */
 
-import { mkdir, readFile, stat, writeFile as fsWriteFile } from "node:fs/promises";
+import {
+  writeFile as fsWriteFile,
+  mkdir,
+  readFile,
+  stat,
+} from "node:fs/promises";
 import { dirname } from "node:path";
 import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
@@ -24,7 +29,10 @@ export const writeFileTool: Tool = {
     type: "object",
     required: ["path", "content"],
     properties: {
-      path: { type: "string", description: "Path relative to the workspace root." },
+      path: {
+        type: "string",
+        description: "Path relative to the workspace root.",
+      },
       content: { type: "string", description: "Full contents of the file." },
     },
     additionalProperties: false,
@@ -38,7 +46,9 @@ export const writeFileTool: Tool = {
 
     const size = Buffer.byteLength(content, "utf8");
     if (size > MAX_WRITE_BYTES) {
-      return fail(`content is ${size} bytes, over the ${MAX_WRITE_BYTES} byte limit.`);
+      return fail(
+        `content is ${size} bytes, over the ${MAX_WRITE_BYTES} byte limit.`,
+      );
     }
 
     let existing: string | undefined;
@@ -51,10 +61,13 @@ export const writeFileTool: Tool = {
     }
 
     if (existing === content) {
-      return ok(`${path} already has exactly this content; nothing was written.`, {
-        path,
-        unchanged: true,
-      });
+      return ok(
+        `${path} already has exactly this content; nothing was written.`,
+        {
+          path,
+          unchanged: true,
+        },
+      );
     }
 
     const decision = await ctx.requestApproval({
@@ -66,9 +79,12 @@ export const writeFileTool: Tool = {
       detail: content.split("\n").slice(0, 40).join("\n"),
     });
     if (decision === "deny") {
-      return fail(`the operator denied writing ${path}. The file is unchanged.`, {
-        reason: "denied",
-      });
+      return fail(
+        `the operator denied writing ${path}. The file is unchanged.`,
+        {
+          reason: "denied",
+        },
+      );
     }
 
     try {
@@ -78,9 +94,12 @@ export const writeFileTool: Tool = {
       return fail(`cannot write ${path}: ${(error as Error).message}`);
     }
 
-    return ok(`${existing === undefined ? "Created" : "Overwrote"} ${path} (${size} bytes).`, {
-      path,
-      created: existing === undefined,
-    });
+    return ok(
+      `${existing === undefined ? "Created" : "Overwrote"} ${path} (${size} bytes).`,
+      {
+        path,
+        created: existing === undefined,
+      },
+    );
   },
 };

@@ -3,8 +3,8 @@
  * every frame, so neither is ever committed to scrollback.
  */
 
-import { useEffect, useState } from "react";
 import { TextAttributes } from "@opentui/core";
+import { useEffect, useState } from "react";
 import { elapsed, opaque, padLine, shortenPath } from "./format.ts";
 
 const FRAMES = ["✳", "✻", "✽", "✻"];
@@ -25,10 +25,12 @@ export function Spinner({ since, width }: { since: number; width: number }) {
 
   return (
     <text fg="yellow">
-      {opaque(padLine(
-        `${FRAMES[frame]} Working (${elapsed(now - since)} · esc to interrupt)`,
-        width,
-      ))}
+      {opaque(
+        padLine(
+          `${FRAMES[frame]} Working (${elapsed(now - since)} · esc to interrupt)`,
+          width,
+        ),
+      )}
     </text>
   );
 }
@@ -48,11 +50,13 @@ export function StatusLine({
 }) {
   return (
     <text attributes={TextAttributes.DIM}>
-      {opaque(padLine(
-        `  ${model} · ${shortenPath(workspace)} · ${session}` +
-          (turn > 0 ? ` · turn ${turn}` : ""),
-        width,
-      ))}
+      {opaque(
+        padLine(
+          `  ${model} · ${shortenPath(workspace)} · ${session}` +
+            (turn > 0 ? ` · turn ${turn}` : ""),
+          width,
+        ),
+      )}
     </text>
   );
 }

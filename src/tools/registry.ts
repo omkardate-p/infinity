@@ -7,13 +7,13 @@
 
 import Ajv, { type ValidateFunction } from "ajv";
 import type { ToolSpec } from "../model/types.ts";
-import { fail, type Tool, type ToolContext, type ToolResult } from "./tool.ts";
+import { editFile } from "./edit-file.ts";
 import { listDir } from "./list-dir.ts";
 import { readFileTool } from "./read-file.ts";
 import { search } from "./search.ts";
-import { editFile } from "./edit-file.ts";
-import { writeFileTool } from "./write-file.ts";
 import { shell } from "./shell.ts";
+import { fail, type Tool, type ToolContext, type ToolResult } from "./tool.ts";
+import { writeFileTool } from "./write-file.ts";
 
 export class ToolRegistry {
   private readonly tools = new Map<string, Tool>();

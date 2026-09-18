@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { OpenAIModel } from "../src/providers/openai.ts";
 import type { Message, ModelEvent, ToolSpec } from "../src/model/types.ts";
+import { OpenAIModel } from "../src/providers/openai.ts";
 
 const TOOLS: ToolSpec[] = [
   {
@@ -106,7 +106,12 @@ describe("OpenAI-compatible provider", () => {
     ]);
 
     expect(events).toEqual([
-      { type: "tool_call", id: "call_1", name: "list_dir", args: { path: "." } },
+      {
+        type: "tool_call",
+        id: "call_1",
+        name: "list_dir",
+        args: { path: "." },
+      },
       { type: "done", stopReason: "tool_calls" },
     ]);
   });
@@ -115,10 +120,16 @@ describe("OpenAI-compatible provider", () => {
     const { events } = await serve([
       delta({
         tool_calls: [
-          { index: 0, id: "call_2", function: { name: "list_dir", arguments: '{"pa' } },
+          {
+            index: 0,
+            id: "call_2",
+            function: { name: "list_dir", arguments: '{"pa' },
+          },
         ],
       }),
-      delta({ tool_calls: [{ index: 0, function: { arguments: 'th":"src"}' } }] }),
+      delta({
+        tool_calls: [{ index: 0, function: { arguments: 'th":"src"}' } }],
+      }),
       delta({}, "tool_calls"),
     ]);
 
@@ -134,29 +145,50 @@ describe("OpenAI-compatible provider", () => {
     const { events } = await serve([
       delta({
         tool_calls: [
-          { index: 0, id: "a", function: { name: "list_dir", arguments: '{"path":"."}' } },
-          { index: 1, id: "b", function: { name: "list_dir", arguments: '{"path":"src"}' } },
+          {
+            index: 0,
+            id: "a",
+            function: { name: "list_dir", arguments: '{"path":"."}' },
+          },
+          {
+            index: 1,
+            id: "b",
+            function: { name: "list_dir", arguments: '{"path":"src"}' },
+          },
         ],
       }),
       delta({}, "tool_calls"),
     ]);
 
     const calls = events.filter((event) => event.type === "tool_call");
-    expect(calls.map((call) => (call as { id: string }).id)).toEqual(["a", "b"]);
+    expect(calls.map((call) => (call as { id: string }).id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 
   test("sends a tool result keyed by tool_call_id", async () => {
-    const { sent } = await serve([delta({ content: "done" }), delta({}, "stop")], {
-      messages: [
-        { role: "user", content: "list the files" },
-        {
-          role: "assistant",
-          content: "",
-          toolCalls: [{ id: "call_9", name: "list_dir", args: { path: "." } }],
-        },
-        { role: "tool", content: "src/", name: "list_dir", toolCallId: "call_9" },
-      ],
-    });
+    const { sent } = await serve(
+      [delta({ content: "done" }), delta({}, "stop")],
+      {
+        messages: [
+          { role: "user", content: "list the files" },
+          {
+            role: "assistant",
+            content: "",
+            toolCalls: [
+              { id: "call_9", name: "list_dir", args: { path: "." } },
+            ],
+          },
+          {
+            role: "tool",
+            content: "src/",
+            name: "list_dir",
+            toolCallId: "call_9",
+          },
+        ],
+      },
+    );
 
     const assistant = sent.messages[1] as {
       tool_calls: { function: { arguments: string } }[];

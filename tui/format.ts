@@ -163,7 +163,7 @@ export function timeOfDay(at: number): string {
 
 /** Long paths lose their middle, so both the project and the file stay legible. */
 export function shortenPath(path: string, max = 48): string {
-  const home = process.env["HOME"];
+  const home = process.env.HOME;
   const tilde =
     home && path.startsWith(home) ? `~${path.slice(home.length)}` : path;
   if (cells(tilde) <= max) return tilde;

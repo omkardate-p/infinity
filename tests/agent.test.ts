@@ -6,9 +6,9 @@
 import { describe, expect, test } from "bun:test";
 import { Agent, type AgentEvent } from "../src/agent/agent.ts";
 import { loadSession } from "../src/agent/state.ts";
+import type { Model } from "../src/model/types.ts";
 import { ToolRegistry } from "../src/tools/registry.ts";
 import { fail, ok, type Tool } from "../src/tools/tool.ts";
-import type { Model, ModelEvent, ModelRequest } from "../src/model/types.ts";
 import { makeWorkspace, ScriptedModel } from "./helpers.ts";
 
 const noteTool: Tool = {

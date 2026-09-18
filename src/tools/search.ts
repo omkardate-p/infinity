@@ -80,7 +80,7 @@ export const search: Tool = {
     ];
 
     const timeout = AbortSignal.timeout(SEARCH_TIMEOUT_MS);
-    let proc;
+    let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
     try {
       proc = Bun.spawn(["rg", ...args], {
         cwd: ctx.workspace,

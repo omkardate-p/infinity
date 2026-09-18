@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * The command line: infinity "task".
  *
@@ -7,15 +8,15 @@
  * command or file change, and the current operation stops cleanly on interrupt.
  */
 
-import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { createInterface } from "node:readline/promises";
+import pkg from "../package.json";
+import { runTui } from "../tui/run.ts";
 import { Agent, type AgentEvent } from "./agent/agent.ts";
 import { listSessions, loadSession, type SessionState } from "./agent/state.ts";
 import { createModel } from "./model/model.ts";
-import { ToolRegistry, defaultTools } from "./tools/registry.ts";
+import { defaultTools, ToolRegistry } from "./tools/registry.ts";
 import type { ApprovalDecision, ApprovalRequest } from "./tools/tool.ts";
-import { runTui } from "../tui/run.ts";
-import pkg from "../package.json";
 
 const DEFAULT_MODEL = "ornith:9b";
 
@@ -96,7 +97,7 @@ function usage(): string {
   return [
     'Usage: infinity "task"',
     "",
-    "  --model <name>     Ollama model to use (default: " + DEFAULT_MODEL + ")",
+    `  --model <name>     Ollama model to use (default: ${DEFAULT_MODEL})`,
     "  --provider <name>  Model provider (default: ollama)",
     "  --resume <id>      Continue a saved session",
     "  --sessions         List saved sessions in this workspace",

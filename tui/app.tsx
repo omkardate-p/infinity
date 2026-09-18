@@ -11,6 +11,13 @@
  * approval is ever outstanding and no request needs correlating back to a call.
  */
 
+import { TextAttributes } from "@opentui/core";
+import {
+  useKeyboard,
+  useOnResize,
+  useRenderer,
+  useTerminalDimensions,
+} from "@opentui/react";
 import {
   useCallback,
   useEffect,
@@ -19,23 +26,16 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  useKeyboard,
-  useOnResize,
-  useRenderer,
-  useTerminalDimensions,
-} from "@opentui/react";
-import { TextAttributes } from "@opentui/core";
 import { Agent } from "../src/agent/agent.ts";
 import type { SessionState } from "../src/agent/state.ts";
 import type { Model } from "../src/model/types.ts";
 import type { ToolRegistry } from "../src/tools/registry.ts";
 import type { ApprovalDecision, ApprovalRequest } from "../src/tools/tool.ts";
-import { opaque, padLine } from "./format.ts";
 import { Approval } from "./approval.tsx";
 import { Composer } from "./composer.tsx";
-import { Spinner, StatusLine } from "./status.tsx";
-import { emptyBuffer, type Buffer } from "./editor.ts";
+import { type Buffer, emptyBuffer } from "./editor.ts";
+import { opaque, padLine } from "./format.ts";
+import { restore } from "./history.ts";
 import {
   composerRows,
   footerPlan,
@@ -43,17 +43,16 @@ import {
   opaqueLines,
   promptLines,
   styledText,
-  type Line,
 } from "./lines.ts";
-import { restore } from "./history.ts";
 import { commitLines, replay } from "./scrollback.ts";
+import { Spinner, StatusLine } from "./status.tsx";
 import {
   commitElapsed,
   commitUser,
   empty,
   reduce,
-  withBanner,
   type ViewModel,
+  withBanner,
 } from "./view-model.ts";
 
 /** Prompts accepted while a turn is running, before the composer refuses. */

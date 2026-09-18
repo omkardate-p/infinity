@@ -13,11 +13,12 @@
  */
 
 import {
-  StyledText,
   createTextAttributes,
   parseColor,
+  StyledText,
   type TextChunk,
 } from "@opentui/core";
+import type { Buffer } from "./editor.ts";
 import {
   cells,
   elapsed,
@@ -30,7 +31,6 @@ import {
   timeOfDay,
   toolArgument,
 } from "./format.ts";
-import { type Buffer } from "./editor.ts";
 import type { TranscriptItem } from "./view-model.ts";
 
 export interface Chunk {

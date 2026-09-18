@@ -63,7 +63,10 @@ describe("assistant text", () => {
     );
 
     expect(state.committed).toEqual([]);
-    expect(state.live).toMatchObject({ kind: "assistant", text: "I'll read it." });
+    expect(state.live).toMatchObject({
+      kind: "assistant",
+      text: "I'll read it.",
+    });
   });
 
   test("reasoning is not displayed", () => {

@@ -88,8 +88,8 @@ if (!stdin.isTTY) {
 stdin.setRawMode(true);
 stdin.resume();
 
-stdout.write(`terminal: ${process.env["TERM_PROGRAM"] ?? "unknown"}`);
-stdout.write(` ${process.env["TERM_PROGRAM_VERSION"] ?? ""}\r\n`);
+stdout.write(`terminal: ${process.env.TERM_PROGRAM ?? "unknown"}`);
+stdout.write(` ${process.env.TERM_PROGRAM_VERSION ?? ""}\r\n`);
 stdout.write("Press the key named on each line. Ctrl-C quits.\r\n\r\n");
 
 for (const mode of MODES) {

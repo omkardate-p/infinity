@@ -4,15 +4,15 @@
  * than at the model's judgement.
  */
 
-import { mkdtemp, mkdir, writeFile, realpath } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import type { Model, ModelEvent, ModelRequest } from "../src/model/types.ts";
 import type {
   ApprovalDecision,
   ApprovalRequest,
   ToolContext,
 } from "../src/tools/tool.ts";
-import type { Model, ModelEvent, ModelRequest } from "../src/model/types.ts";
 
 export interface TestWorkspace {
   root: string;

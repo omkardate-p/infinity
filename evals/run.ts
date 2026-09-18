@@ -17,13 +17,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Agent, type AgentEvent } from "../src/agent/agent.ts";
 import { createModel } from "../src/model/model.ts";
-import { ToolRegistry, defaultTools } from "../src/tools/registry.ts";
+import { defaultTools, ToolRegistry } from "../src/tools/registry.ts";
 import type {
   Approver,
   FixtureMeta,
   Transcript,
-  VerifyContext,
   Verifier,
+  VerifyContext,
   VerifyResult,
 } from "./types.ts";
 

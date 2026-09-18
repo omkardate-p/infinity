@@ -5,8 +5,8 @@
  * its own output or formats its own error is a defect.
  */
 
-import { dirname, isAbsolute, resolve } from "node:path";
 import { realpath } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 export interface ToolResult {
   ok: boolean;

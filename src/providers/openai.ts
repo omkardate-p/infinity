@@ -6,10 +6,10 @@
  */
 
 import type {
+  Message,
   Model,
   ModelEvent,
   ModelRequest,
-  Message,
   StopReason,
   ToolSpec,
 } from "../model/types.ts";

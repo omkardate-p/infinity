@@ -3,9 +3,9 @@
  * provider produced it.
  */
 
-import type { Model } from "./types.ts";
 import { OllamaModel } from "../providers/ollama.ts";
 import { OpenAIModel } from "../providers/openai.ts";
+import type { Model } from "./types.ts";
 
 export interface ModelConfig {
   provider: string;

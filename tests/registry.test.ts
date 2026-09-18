@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { ToolRegistry, defaultTools } from "../src/tools/registry.ts";
+import { defaultTools, ToolRegistry } from "../src/tools/registry.ts";
 import { ok, type Tool } from "../src/tools/tool.ts";
 import { makeWorkspace } from "./helpers.ts";
 

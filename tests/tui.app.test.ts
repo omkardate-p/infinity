@@ -9,12 +9,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { pasteBytes } from "@opentui/core/testing";
 import { testRender } from "@opentui/react/test-utils";
 import { createElement } from "react";
-import { App } from "../tui/app.tsx";
 import { ToolRegistry } from "../src/tools/registry.ts";
 import { fail, ok } from "../src/tools/tool.ts";
-import { pasteBytes } from "@opentui/core/testing";
+import { App } from "../tui/app.tsx";
 import { makeWorkspace, ScriptedModel, type ScriptedTurn } from "./helpers.ts";
 
 async function mountWith(

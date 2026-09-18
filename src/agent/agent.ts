@@ -9,17 +9,17 @@
  */
 
 import type { Message, Model, ToolCall } from "../model/types.ts";
+import type { ToolRegistry } from "../tools/registry.ts";
 import type {
   ApprovalDecision,
   ApprovalRequest,
   ToolContext,
 } from "../tools/tool.ts";
-import type { ToolRegistry } from "../tools/registry.ts";
 import {
   createSession,
   messagesOf,
-  saveSession,
   type SessionState,
+  saveSession,
 } from "./state.ts";
 
 // The working contract only. Growing this to paper over a runtime defect is

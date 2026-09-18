@@ -3,8 +3,9 @@
  * count so that a directory with thousands of files cannot fill the context.
  */
 
+import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { relative, join } from "node:path";
+import { join, relative } from "node:path";
 import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
 const MAX_ENTRIES = 200;
@@ -46,7 +47,7 @@ export const listDir: Tool = {
     const resolved = await resolvePath(ctx.workspace, path);
     if (!resolved.ok) return fail(resolved.reason, { reason: "path_rejected" });
 
-    let entries;
+    let entries: Dirent[];
     try {
       entries = await readdir(resolved.path, { withFileTypes: true });
     } catch (error) {

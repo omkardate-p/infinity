@@ -16,7 +16,7 @@
  */
 
 import { stdout } from "node:process";
-import { createCliRenderer, type CliRenderer } from "@opentui/core";
+import { type CliRenderer, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { createElement } from "react";
 import type { SessionState } from "../src/agent/state.ts";
@@ -77,7 +77,9 @@ export async function runTui(options: TuiOptions): Promise<number> {
       resolve(0);
     };
     for (const signal of SIGNALS) process.on(signal, finish);
-    createRoot(renderer).render(createElement(App, { ...options, onExit: finish }));
+    createRoot(renderer).render(
+      createElement(App, { ...options, onExit: finish }),
+    );
   });
 }
 

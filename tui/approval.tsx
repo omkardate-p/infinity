@@ -29,7 +29,8 @@ export function Approval({
   });
 
   const all = request.detail ? request.detail.split("\n") : [];
-  const shown = all.length > maxDetail ? Math.max(0, maxDetail - 1) : all.length;
+  const shown =
+    all.length > maxDetail ? Math.max(0, maxDetail - 1) : all.length;
   const detail =
     shown === all.length
       ? all
