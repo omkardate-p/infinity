@@ -2,3 +2,4 @@ node_modules/
 .infinity/
 *.log
 .claude/sessions
+.claude/settings.local.json

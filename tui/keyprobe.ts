@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Reports what this terminal actually sends for a key, under each keyboard
- * protocol mode in turn. It deliberately does not use Ink: the question is
+ * protocol mode in turn. It uses no renderer: the question is
  * what the terminal emits, separate from what any parser makes of it.
  *
  * Run it, follow the prompts, and paste the output back.
