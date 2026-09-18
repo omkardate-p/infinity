@@ -55,9 +55,10 @@ const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 //
 // Tabs are expanded before measuring rather than counted, because a tab is as
 // wide as the distance to the next stop and a layout cannot know that distance
-// until it knows where the tab landed.
+// until it knows where the tab landed, and a control character is not a cell at
+// all.
 export function cells(text: string): number {
-  return Bun.stringWidth(expandTabs(text));
+  return Bun.stringWidth(printable(text));
 }
 
 // Makes one line safe to draw: tabs become spaces, and anything past the width
@@ -66,7 +67,7 @@ export function cells(text: string): number {
 // remaining cells without clearing the cell, so the previous frame shows
 // through there.
 export function fitLine(text: string, width: number): string {
-  const expanded = expandTabs(text);
+  const expanded = printable(text);
   if (Bun.stringWidth(expanded) <= width) return expanded;
 
   let kept = "";
@@ -102,7 +103,7 @@ function fitTail(text: string, width: number): string {
   let kept = "";
   let used = 0;
   for (const segment of [...GRAPHEMES.segment(text)].reverse()) {
-    const next = used + Bun.stringWidth(segment.segment);
+    const next = used + cells(segment.segment);
     if (next > width) break;
     kept = segment.segment + kept;
     used = next;
@@ -110,12 +111,21 @@ function fitTail(text: string, width: number): string {
   return kept;
 }
 
-// Everything that is not one drawable cell becomes one. A tab advances to the
-// next stop, so it is wider than the single character it counts as; a newline
-// inside a line that was already broken into rows renders as a row the caller
-// never counted.
-function expandTabs(text: string): string {
-  return text.replace(/\t/g, "    ").replace(/[\r\n]/g, " ");
+// Everything that is not one drawable cell becomes one.
+//
+// A tab advances to the next stop, so it is wider than the single character it
+// counts as, and a newline inside a line that was already broken into rows
+// renders as a row the caller never counted. The rest are control characters,
+// and they are the dangerous case: tool output and model text reach this
+// function unaltered, so an ESC arriving from a command that emits colour would
+// otherwise be handed to the terminal to obey.
+function printable(text: string): string {
+  return (
+    text
+      .replace(/\t/g, "    ")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to remove them
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
+  );
 }
 
 // Seconds while a run is short, minutes and seconds once it is not.

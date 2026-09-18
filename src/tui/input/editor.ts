@@ -17,31 +17,30 @@ export function emptyBuffer(): Buffer {
 }
 
 export function insert(buffer: Buffer, inserted: string): Buffer {
+  // A paste carries whatever the clipboard held. A carriage return is not a
+  // character the prompt can show, and it goes to the model verbatim.
+  const text = inserted.replace(/\r\n?/g, "\n");
   return {
     text:
       buffer.text.slice(0, buffer.cursor) +
-      inserted +
+      text +
       buffer.text.slice(buffer.cursor),
-    cursor: buffer.cursor + inserted.length,
+    cursor: buffer.cursor + text.length,
   };
 }
 
 export function backspace(buffer: Buffer): Buffer {
   const start = before(buffer.text, buffer.cursor);
   if (start === buffer.cursor) return buffer;
-  return {
-    text: buffer.text.slice(0, start) + buffer.text.slice(buffer.cursor),
-    cursor: start,
-  };
+  const text = buffer.text.slice(0, start) + buffer.text.slice(buffer.cursor);
+  return { text, cursor: onBoundary(text, start) };
 }
 
 export function deleteForward(buffer: Buffer): Buffer {
   const end = after(buffer.text, buffer.cursor);
   if (end === buffer.cursor) return buffer;
-  return {
-    text: buffer.text.slice(0, buffer.cursor) + buffer.text.slice(end),
-    cursor: buffer.cursor,
-  };
+  const text = buffer.text.slice(0, buffer.cursor) + buffer.text.slice(end);
+  return { text, cursor: onBoundary(text, buffer.cursor) };
 }
 
 export function left(buffer: Buffer): Buffer {
@@ -64,12 +63,11 @@ export function up(buffer: Buffer): Buffer {
   const start = startOfLine(buffer.text, buffer.cursor);
   if (start === 0) return buffer;
 
-  const column = buffer.cursor - start;
+  const column = columnOf(buffer.text, start, buffer.cursor);
   const previousStart = startOfLine(buffer.text, start - 1);
-  const previousEnd = start - 1;
   return {
     ...buffer,
-    cursor: Math.min(previousStart + column, previousEnd),
+    cursor: atColumn(buffer.text, previousStart, start - 1, column),
   };
 }
 
@@ -77,10 +75,47 @@ export function down(buffer: Buffer): Buffer {
   const end = endOfLine(buffer.text, buffer.cursor);
   if (end === buffer.text.length) return buffer;
 
-  const column = buffer.cursor - startOfLine(buffer.text, buffer.cursor);
+  const start = startOfLine(buffer.text, buffer.cursor);
+  const column = columnOf(buffer.text, start, buffer.cursor);
   const nextStart = end + 1;
-  const nextEnd = endOfLine(buffer.text, nextStart);
-  return { ...buffer, cursor: Math.min(nextStart + column, nextEnd) };
+  return {
+    ...buffer,
+    cursor: atColumn(
+      buffer.text,
+      nextStart,
+      endOfLine(buffer.text, nextStart),
+      column,
+    ),
+  };
+}
+
+// A column is a count of graphemes, not of code units: counting units puts the
+// cursor inside a flag or an accent when the lines hold different characters.
+function columnOf(text: string, start: number, cursor: number): number {
+  return graphemes(text.slice(start, cursor)).length;
+}
+
+function atColumn(
+  text: string,
+  start: number,
+  end: number,
+  column: number,
+): number {
+  const target = graphemes(text.slice(start, end))[column];
+  return target === undefined ? end : start + target.index;
+}
+
+// Deleting joins what was on either side of the gap, and two characters that
+// were separate can become one grapheme. A cursor that sat on a boundary before
+// the edit is then inside a cluster.
+function onBoundary(text: string, offset: number): number {
+  let last = 0;
+  for (const { index } of graphemes(text)) {
+    if (index === offset) return offset;
+    if (index > offset) return last;
+    last = index;
+  }
+  return offset >= text.length ? text.length : last;
 }
 
 // The cursor moves a whole grapheme at a time. A code unit at a time lands
