@@ -124,7 +124,14 @@ export class Agent {
       await saveSession(session);
 
       if (turn.calls.length === 0) {
-        yield { type: "done", reason: "completed", turns: session.turns };
+        // An interrupt lands mid-turn, and a cancelled stream ends with no tool
+        // calls. Deciding "completed" here, before the loop's own check, is how
+        // an abandoned run came to be indistinguishable from a finished one.
+        yield {
+          type: "done",
+          reason: signal.aborted ? "aborted" : "completed",
+          turns: session.turns,
+        };
         return;
       }
 

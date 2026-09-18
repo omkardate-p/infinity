@@ -7,7 +7,11 @@ import { describe, expect, test } from "bun:test";
 import type { AgentEvent } from "../../src/domain/events.ts";
 import { Agent } from "../../src/harness/agent/agent.ts";
 import { loadSession } from "../../src/harness/agent/state.ts";
-import type { Model } from "../../src/harness/model/types.ts";
+import type {
+  Model,
+  ModelEvent,
+  ModelRequest,
+} from "../../src/harness/model/types.ts";
 import { ToolRegistry } from "../../src/harness/tools/registry.ts";
 import { fail, ok, type Tool } from "../../src/harness/tools/tool.ts";
 import { makeWorkspace, ScriptedModel } from "../helpers.ts";
@@ -399,3 +403,45 @@ describe("resume", () => {
     });
   });
 });
+
+describe("interruption", () => {
+  test("a run cancelled mid-turn says it was aborted, not completed", async () => {
+    // The abort arrives while the model is streaming, so the turn ends with no
+    // tool calls. Reporting "completed" there made an abandoned run look like a
+    // finished one: the eval harness recorded its own watchdog kills as clean
+    // completions, and Esc in the interface left no trace in the transcript.
+    const workspace = await makeWorkspace();
+    const agent = new Agent({
+      model: new SlowModel(),
+      registry: new ToolRegistry([]),
+      workspace: workspace.root,
+      requestApproval: async () => "allow",
+    });
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 60);
+
+    const reasons: string[] = [];
+    for await (const event of agent.run(
+      agent.start("say something"),
+      controller.signal,
+    )) {
+      if (event.type === "done") reasons.push(event.reason);
+    }
+
+    expect(reasons).toEqual(["aborted"]);
+  });
+});
+
+/** Streams slowly enough to be interrupted, and stops once it is. */
+class SlowModel implements Model {
+  readonly id = "slow";
+  async *stream(request: ModelRequest): AsyncIterable<ModelEvent> {
+    for (const word of ["one", "two", "three", "four", "five", "six"]) {
+      if (request.signal?.aborted) break;
+      yield { type: "text_delta", text: `${word} ` };
+      await Bun.sleep(30);
+    }
+    yield { type: "done", stopReason: "end_turn" };
+  }
+}
