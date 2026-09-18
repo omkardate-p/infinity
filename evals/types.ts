@@ -5,8 +5,11 @@
  * reading the output.
  */
 
-import type { AgentEvent, AgentStopReason } from "../src/agent/agent.ts";
-import type { ApprovalDecision, ApprovalRequest } from "../src/tools/tool.ts";
+import type { AgentEvent, AgentStopReason } from "../src/domain/events.ts";
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+} from "../src/harness/tools/tool.ts";
 
 export interface Transcript {
   events: AgentEvent[];

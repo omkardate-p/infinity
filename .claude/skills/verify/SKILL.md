@@ -51,6 +51,6 @@ Read the pass rate across repeats, never one run; a single pass is indistinguish
 
 ## What cannot be proven here
 
-The TUI needs a pty and there is none in a tool call. Key disambiguation, focus reporting, paste as one event, the pinned footer, scrollback and resize replay are checked by a human at a real terminal or not at all; a person runs `bun run tui/keyprobe.ts` and pastes back what their terminal emitted.
+The TUI needs a pty and there is none in a tool call. Key disambiguation, focus reporting, paste as one event, the pinned footer, scrollback and resize replay are checked by a human at a real terminal or not at all; a person runs `bun run src/tui/input/keyprobe.ts` and pastes back what their terminal emitted.
 
 Say which of these you checked by hand, on which terminal, and what you saw. An unchecked one is reported as unchecked.

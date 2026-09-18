@@ -15,9 +15,10 @@
 import { cp, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Agent, type AgentEvent } from "../src/agent/agent.ts";
-import { createModel } from "../src/model/model.ts";
-import { defaultTools, ToolRegistry } from "../src/tools/registry.ts";
+import type { AgentEvent } from "../src/domain/events.ts";
+import { Agent } from "../src/harness/agent/agent.ts";
+import { createModel } from "../src/harness/model/model.ts";
+import { defaultTools, ToolRegistry } from "../src/harness/tools/registry.ts";
 import type {
   Approver,
   FixtureMeta,

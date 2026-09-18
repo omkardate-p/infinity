@@ -11,12 +11,20 @@
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import pkg from "../package.json";
-import { runTui } from "../tui/run.ts";
-import { Agent, type AgentEvent } from "./agent/agent.ts";
-import { listSessions, loadSession, type SessionState } from "./agent/state.ts";
-import { createModel } from "./model/model.ts";
-import { defaultTools, ToolRegistry } from "./tools/registry.ts";
-import type { ApprovalDecision, ApprovalRequest } from "./tools/tool.ts";
+import type { AgentEvent } from "./domain/events.ts";
+import { Agent } from "./harness/agent/agent.ts";
+import {
+  listSessions,
+  loadSession,
+  type SessionState,
+} from "./harness/agent/state.ts";
+import { createModel } from "./harness/model/model.ts";
+import { defaultTools, ToolRegistry } from "./harness/tools/registry.ts";
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+} from "./harness/tools/tool.ts";
+import { runTui } from "./tui/run.ts";
 
 const DEFAULT_MODEL = "ornith:9b";
 

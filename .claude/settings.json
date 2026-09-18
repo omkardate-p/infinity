@@ -11,6 +11,7 @@
       "Bash(bun run format:check)",
       "Bash(bun run evals:fast)",
       "Bash(bun run evals/run.ts:*)",
+      "Bash(git -C:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
