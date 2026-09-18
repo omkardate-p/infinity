@@ -220,12 +220,20 @@ async function runOnce(
       run: runner(workspace),
     });
 
+    // A run the harness had to kill is not a pass, whatever the workspace
+    // looks like afterwards: nothing in here aborts but the timeout, and the
+    // agent was cut off mid-action. A fixture that asks for no change at all
+    // is otherwise satisfied by an agent that wedged for ten minutes.
+    const killed = stopReason === "aborted";
+
     return {
       task: fixture.meta.name,
       kind: fixture.meta.kind,
       attempt,
-      passed: verdict.ok,
-      reason: verdict.reason,
+      passed: verdict.ok && !killed,
+      reason: killed
+        ? `killed at the ${RUN_TIMEOUT_MS / 1000}s timeout: ${verdict.reason}`
+        : verdict.reason,
       turns,
       stopReason,
       elapsedMs: Date.now() - started,

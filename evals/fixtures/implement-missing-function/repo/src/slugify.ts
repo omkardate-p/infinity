@@ -3,5 +3,9 @@
  * with anything that is not a letter or digit dropped.
  */
 export function slugify(title: string): string {
-  throw new Error("slugify is not implemented");
+  let slug = title.toLowerCase();
+  slug = slug.replace(/'/g, "");
+  slug = slug.replace(/[^a-z0-9]+/g, "-");
+  slug = slug.replace(/^-+|-+$/g, "");
+  return slug;
 }
