@@ -46,7 +46,7 @@ const NUL = String.fromCharCode(0x00);
 const COMBINING_ACUTE = String.fromCharCode(0x0301);
 const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b);
 
-/** Pieces chosen because each one breaks a different assumption. */
+// Pieces chosen because each one breaks a different assumption.
 const PIECES = [
   "a",
   " ",
@@ -129,6 +129,46 @@ describe("a width the terminal can actually report", () => {
     for (const width of [1, 2, 3]) {
       const lines = itemLines(item, width);
       for (const line of lines) expect(lineText(line)).not.toContain("\n");
+    }
+  });
+});
+
+describe("both wraps cut in the same places", () => {
+  // Plain text is wrapped by counting characters; anything else goes through
+  // the segmenter. They are two paths through one set of rules, so the rules
+  // are asserted here rather than the path.
+  const widths = [1, 2, 8, 13, 41, 80];
+
+  test("a row boundary does not depend on the path taken", () => {
+    const plain = "alpha bravo charlie delta echo foxtrot golf hotel india";
+    for (const width of widths) {
+      // The same text with one character the segmenter has to look at.
+      const exotic = plain.replace("alpha", "\u00e9lpha");
+      expect(wrap(plain, width).length).toBe(wrap(exotic, width).length);
+      expect(wrap(plain, width).slice(1)).toEqual(wrap(exotic, width).slice(1));
+    }
+  });
+
+  test("breaking happens after a space, and mid-word only when it must", () => {
+    expect(wrap("alpha bravo charlie", 12)).toEqual([
+      "alpha bravo ",
+      "charlie",
+    ]);
+    expect(wrap("supercalifragilistic", 8)).toEqual([
+      "supercal",
+      "ifragili",
+      "stic",
+    ]);
+  });
+
+  test("the rows rebuild the text, losing and inventing nothing", () => {
+    const random = mulberry(11);
+    for (let round = 0; round < 300; round += 1) {
+      // A newline is a row of its own, so it is not part of this property.
+      const text = generate(random).replaceAll("\n", "").replaceAll("\r", "");
+      const width = widths[Math.floor(random() * widths.length)]!;
+
+      expect(wrap(text, width).join("")).toBe(text);
     }
   });
 });
