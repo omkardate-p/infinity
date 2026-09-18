@@ -83,11 +83,9 @@ export function down(buffer: Buffer): Buffer {
   return { ...buffer, cursor: Math.min(nextStart + column, nextEnd) };
 }
 
-/**
- * The cursor moves a whole grapheme at a time. A code unit at a time lands
- * between the halves of a surrogate pair or between a letter and its accent,
- * and the next backspace then sends half a character to the model.
- */
+// The cursor moves a whole grapheme at a time. A code unit at a time lands
+// between the halves of a surrogate pair or between a letter and its accent,
+// and the next backspace then sends half a character to the model.
 function before(text: string, offset: number): number {
   let previous = 0;
   for (const { index } of graphemes(text)) {

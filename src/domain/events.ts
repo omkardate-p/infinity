@@ -4,7 +4,7 @@
  * This is the contract between whatever produces a run and whatever watches
  * one: the agent loop emits these, the interface and the eval harness read
  * them, and neither end knows the other exists. Nothing provider-shaped belongs
- * here — a field that exists because Ollama emits it lives in runtime/providers.
+ * here — a field that exists because Ollama emits it lives in harness/providers.
  */
 
 export type AgentEvent =

@@ -58,19 +58,17 @@ export async function makeWorkspace(
 export type ScriptedTurn =
   | { text: string; calls?: { name: string; args: unknown }[] }
   | { error: string }
-  /** A transport failure: the stream throws rather than reporting an error. */
+  // A transport failure: the stream throws rather than reporting an error.
   | { throws: string };
 
-/**
- * A model that replays a fixed script. The real Agent drives it, so a test gets
- * the real event stream without anything reaching Ollama.
- */
+// A model that replays a fixed script. The real Agent drives it, so a test gets
+// the real event stream without anything reaching Ollama.
 export class ScriptedModel implements Model {
   readonly id = "scripted";
   readonly requests: ModelRequest[] = [];
   private index = 0;
 
-  /** A delay between deltas, for tests that need a turn still in flight. */
+  // A delay between deltas, for tests that need a turn still in flight.
   constructor(
     private readonly script: ScriptedTurn[],
     private readonly delayMs = 0,

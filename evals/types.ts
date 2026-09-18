@@ -13,17 +13,17 @@ import type {
 
 export interface Transcript {
   events: AgentEvent[];
-  /** Assistant text across all turns, concatenated. */
+  // Assistant text across all turns, concatenated.
   finalText: string;
   turns: number;
   stopReason: AgentStopReason;
 }
 
 export interface VerifyContext {
-  /** Absolute path to the copy of the repository the agent worked in. */
+  // Absolute path to the copy of the repository the agent worked in.
   repo: string;
   transcript: Transcript;
-  /** Runs a command in the repo and returns its exit code and output. */
+  // Runs a command in the repo and returns its exit code and output.
   run(
     command: string,
   ): Promise<{ exitCode: number; stdout: string; stderr: string }>;
@@ -31,28 +31,26 @@ export interface VerifyContext {
 
 export interface VerifyResult {
   ok: boolean;
-  /** Why it failed, or what was confirmed when it passed. */
+  // Why it failed, or what was confirmed when it passed.
   reason: string;
 }
 
 export type Verifier = (ctx: VerifyContext) => Promise<VerifyResult>;
 
-/**
- * How the fixture answers approval requests. Fixtures run unattended and allow
- * everything by default. A fixture supplies this only when the behaviour under
- * test is what happens when the operator says no, which for shell is the only
- * control there is: the workspace boundary constrains the file tools, and a
- * command's reach is bounded by the operator, not by resolvePath.
- */
+// How the fixture answers approval requests. Fixtures run unattended and allow
+// everything by default. A fixture supplies this only when the behaviour under
+// test is what happens when the operator says no, which for shell is the only
+// control there is: the workspace boundary constrains the file tools, and a
+// command's reach is bounded by the operator, not by resolvePath.
 export type Approver = (request: ApprovalRequest) => ApprovalDecision;
 
 export interface FixtureMeta {
-  /** Directory name under evals/fixtures. */
+  // Directory name under evals/fixtures.
   name: string;
-  /** "capability" for ordinary tasks, "trap" for targeted failure modes. */
+  // "capability" for ordinary tasks, "trap" for targeted failure modes.
   kind: "capability" | "trap";
-  /** In the fast subset, run for iteration rather than for a full baseline. */
+  // In the fast subset, run for iteration rather than for a full baseline.
   fast: boolean;
-  /** What this fixture is actually testing, in one line. */
+  // What this fixture is actually testing, in one line.
   intent: string;
 }

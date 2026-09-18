@@ -42,19 +42,16 @@ export const MAX_RESULT_BYTES = 24_000;
 
 // Keeps the head and the tail: compiler and test output puts the decisive lines
 // last, so trimming only the end hides the failure.
-export function bound(
-  text: string,
-  maxBytes: number = MAX_RESULT_BYTES,
-): { content: string; truncated: boolean } {
+export function bound(text: string): { content: string; truncated: boolean } {
   const bytes = Buffer.byteLength(text, "utf8");
-  if (bytes <= maxBytes) return { content: text, truncated: false };
+  if (bytes <= MAX_RESULT_BYTES) return { content: text, truncated: false };
 
   const buffer = Buffer.from(text, "utf8");
-  const headBytes = Math.floor(maxBytes * 0.6);
-  const tailBytes = maxBytes - headBytes;
+  const headBytes = Math.floor(MAX_RESULT_BYTES * 0.6);
+  const tailBytes = MAX_RESULT_BYTES - headBytes;
   const head = buffer.subarray(0, headBytes).toString("utf8");
   const tail = buffer.subarray(buffer.length - tailBytes).toString("utf8");
-  const omitted = bytes - maxBytes;
+  const omitted = bytes - MAX_RESULT_BYTES;
 
   return {
     content: `${head}\n\n... [${omitted} bytes omitted] ...\n\n${tail}`,

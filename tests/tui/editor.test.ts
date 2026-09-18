@@ -18,7 +18,7 @@ import {
   up,
 } from "../../src/tui/input/editor.ts";
 
-/** "ab|c" means the cursor sits between b and c. */
+// "ab|c" means the cursor sits between b and c.
 function parse(marked: string): Buffer {
   const cursor = marked.indexOf("|");
   return { text: marked.replace("|", ""), cursor };

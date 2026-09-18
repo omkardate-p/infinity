@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FixtureMeta, Verifier } from "../../types.ts";
 
@@ -37,7 +37,11 @@ export const verify: Verifier = async ({ repo, run, transcript }) => {
       readFile(join(source, file), "utf8"),
       readFile(join(target, file), "utf8").catch(() => ""),
     ]);
-    if (before !== after) return { ok: false, reason: `${file} was edited, but only one constant changed` };
+    if (before !== after)
+      return {
+        ok: false,
+        reason: `${file} was edited, but only one constant changed`,
+      };
   }
 
   const searches = transcript.events.filter(

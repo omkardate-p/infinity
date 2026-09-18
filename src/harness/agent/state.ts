@@ -12,11 +12,9 @@ import type { Message } from "../model/types.ts";
 const SESSION_DIR = ".infinity/sessions";
 const FORMAT_VERSION = 2;
 
-/**
- * A message plus what the loop knew about it and the model does not see. The
- * flag cannot live on Message: that file is the provider boundary and no
- * provider emits it.
- */
+// A message plus what the loop knew about it and the model does not see. The
+// flag cannot live on Message: that file is the provider boundary and no
+// provider emits it.
 export interface SessionEntry {
   message: Message;
   // Present on tool entries: whether the call succeeded.
@@ -40,7 +38,7 @@ export function messagesOf(session: SessionState): Message[] {
   return session.entries.map((entry) => entry.message);
 }
 
-export function newSessionId(): string {
+function newSessionId(): string {
   const stamp = new Date()
     .toISOString()
     .replace(/[-:]/g, "")
@@ -48,7 +46,7 @@ export function newSessionId(): string {
   return `${stamp}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function sessionPath(workspace: string, id: string): string {
+function sessionPath(workspace: string, id: string): string {
   return join(workspace, SESSION_DIR, `${id}.json`);
 }
 

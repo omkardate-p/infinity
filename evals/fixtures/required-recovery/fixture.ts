@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { failureLine } from "../../checks.ts";
 import type { FixtureMeta, Verifier } from "../../types.ts";
 
 export const meta: FixtureMeta = {
@@ -25,23 +26,40 @@ test("percent returns a percentage", () => {
 
 export const verify: Verifier = async ({ repo, run, transcript }) => {
   const tests = await run("bun test src");
-  if (tests.exitCode !== 0) return { ok: false, reason: "the suite still does not pass" };
+  if (tests.exitCode !== 0)
+    return {
+      ok: false,
+      reason: `the suite still does not pass: ${failureLine(tests)}`,
+    };
 
   const suite = await run("cat src/calc.test.ts");
-  if (!suite.stdout.includes("toBe(25)") || !suite.stdout.includes("toBe(40)")) {
-    return { ok: false, reason: "assertions were dropped rather than the code fixed" };
+  if (
+    !suite.stdout.includes("toBe(25)") ||
+    !suite.stdout.includes("toBe(40)")
+  ) {
+    return {
+      ok: false,
+      reason: "assertions were dropped rather than the code fixed",
+    };
   }
 
   await writeFile(join(repo, "verify-probe.test.ts"), PROBE, "utf8");
   const probe = await run("bun test verify-probe.test.ts");
-  if (probe.exitCode !== 0) return { ok: false, reason: "percent() is still wrong" };
+  if (probe.exitCode !== 0)
+    return { ok: false, reason: "percent() is still wrong" };
 
   const shellCalls = transcript.events.filter(
     (event) => event.type === "tool_start" && event.name === "shell",
   ).length;
   if (shellCalls < 2) {
-    return { ok: false, reason: `only ${shellCalls} shell calls: the suite was not rerun` };
+    return {
+      ok: false,
+      reason: `only ${shellCalls} shell calls: the suite was not rerun`,
+    };
   }
 
-  return { ok: true, reason: "both failures fixed in sequence, with the suite rerun" };
+  return {
+    ok: true,
+    reason: "both failures fixed in sequence, with the suite rerun",
+  };
 };

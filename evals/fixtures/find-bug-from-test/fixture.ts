@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { failureLine } from "../../checks.ts";
 import type { FixtureMeta, Verifier } from "../../types.ts";
 
 export const meta: FixtureMeta = {
@@ -10,13 +11,12 @@ export const meta: FixtureMeta = {
     "The failing test names schedule.ts, but the defect is the boundary condition in range.ts.",
 };
 
-export const task = "One test is failing. Find the cause and fix it, then run the tests again.";
+export const task =
+  "One test is failing. Find the cause and fix it, then run the tests again.";
 
-/**
- * Probes overlaps() directly rather than matching on source text, because there
- * is more than one correct way to write an inclusive comparison and a verifier
- * that only accepts one of them would fail a correct fix.
- */
+// Probes overlaps() directly rather than matching on source text, because there
+// is more than one correct way to write an inclusive comparison and a verifier
+// that only accepts one of them would fail a correct fix.
 const PROBE = `import { expect, test } from "bun:test";
 import { overlaps } from "./src/range.ts";
 
@@ -36,7 +36,9 @@ test("contained ranges overlap", () => {
 
 export const verify: Verifier = async ({ repo, run }) => {
   const tests = await run("bun test");
-  if (tests.exitCode !== 0) return { ok: false, reason: "tests still fail" };
+  if (tests.exitCode !== 0) {
+    return { ok: false, reason: `tests still fail: ${failureLine(tests)}` };
+  }
 
   const suite = await run("cat src/schedule.test.ts");
   if (!suite.stdout.includes("touching ends")) {
@@ -48,8 +50,14 @@ export const verify: Verifier = async ({ repo, run }) => {
   await writeFile(join(repo, "verify-probe.test.ts"), PROBE, "utf8");
   const probe = await run("bun test verify-probe.test.ts");
   if (probe.exitCode !== 0) {
-    return { ok: false, reason: "overlaps() still has the wrong boundary behaviour" };
+    return {
+      ok: false,
+      reason: "overlaps() still has the wrong boundary behaviour",
+    };
   }
 
-  return { ok: true, reason: "overlaps() is inclusive at both ends and the suite is intact" };
+  return {
+    ok: true,
+    reason: "overlaps() is inclusive at both ends and the suite is intact",
+  };
 };

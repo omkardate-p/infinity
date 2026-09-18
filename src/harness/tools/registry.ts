@@ -35,14 +35,6 @@ export class ToolRegistry {
     this.validators.set(tool.name, this.ajv.compile(tool.inputSchema));
   }
 
-  get(name: string): Tool | undefined {
-    return this.tools.get(name);
-  }
-
-  has(name: string): boolean {
-    return this.tools.has(name);
-  }
-
   specs(): ToolSpec[] {
     return [...this.tools.values()].map((tool) => ({
       name: tool.name,

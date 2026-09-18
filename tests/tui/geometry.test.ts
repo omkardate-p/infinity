@@ -27,7 +27,7 @@ import {
   styledText,
 } from "../../src/tui/rendering/lines.ts";
 
-/** One entry per way a character has fooled a length-based layout. */
+// One entry per way a character has fooled a length-based layout.
 const CORPUS: Record<string, string> = {
   ascii: "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo",
   cjk: "日本語のテキストがここにあります、そしてまだ続いていきます",
@@ -191,11 +191,9 @@ describe("the footer is never taller than the terminal", () => {
   });
 });
 
-/**
- * The renderer, not the arithmetic. A committed snapshot declares its height
- * from the line count, so the two have to agree about what a row is — which is
- * exactly what a wrapped line, a wide glyph or an embedded newline breaks.
- */
+// The renderer, not the arithmetic. A committed snapshot declares its height
+// from the line count, so the two have to agree about what a row is — which is
+// exactly what a wrapped line, a wide glyph or an embedded newline breaks.
 describe("the renderer draws the rows the layout counted", () => {
   const SENTINEL = "ZZZSENTINELZZZ";
 

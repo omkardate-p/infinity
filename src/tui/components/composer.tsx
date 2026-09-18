@@ -35,10 +35,10 @@ export function Composer({
 }: {
   buffer: Buffer;
   width: number;
-  /** Rows the footer can spare; more text than that scrolls under the cursor. */
+  // Rows the footer can spare; more text than that scrolls under the cursor.
   maxRows: number;
   onChange(next: Buffer): void;
-  /** Returns false when the prompt was refused, so the text is kept. */
+  // Returns false when the prompt was refused, so the text is kept.
   onSubmit(text: string): boolean;
   isActive: boolean;
 }) {
@@ -151,5 +151,5 @@ export function Composer({
   );
 }
 
-/** Half a blink: how long the cursor stays shown, and then hidden. */
+// Half a blink: how long the cursor stays shown, and then hidden.
 const BLINK_MS = 500;

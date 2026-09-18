@@ -5,7 +5,7 @@
 
 import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { relative } from "node:path";
 import { fail, ok, resolvePath, type Tool } from "./tool.ts";
 
 const MAX_ENTRIES = 200;
@@ -83,7 +83,7 @@ export const listDir: Tool = {
     const label = relative(ctx.workspace, resolved.path) || ".";
     return ok(`${label}:\n${lines.join("\n")}`, {
       entries: visible.length,
-      path: join(label),
+      path: label,
     });
   },
 };

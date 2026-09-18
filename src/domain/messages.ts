@@ -3,7 +3,7 @@
  * folded together: one entry per thing a reader sees.
  *
  * These are display items, not the messages a model is sent — those are
- * `Message` in runtime/model/types.ts, and the two differ on purpose. A tool
+ * `Message` in harness/model/types.ts, and the two differ on purpose. A tool
  * call and its result are one item here and two messages there, and a key
  * exists here because a list has to be keyed and means nothing to a provider.
  */

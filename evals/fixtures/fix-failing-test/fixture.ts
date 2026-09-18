@@ -1,5 +1,5 @@
-import type { FixtureMeta, Verifier } from "../../types.ts";
 import { failureLine } from "../../checks.ts";
+import type { FixtureMeta, Verifier } from "../../types.ts";
 
 export const meta: FixtureMeta = {
   name: "fix-failing-test",

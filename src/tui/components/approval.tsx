@@ -18,7 +18,7 @@ export function Approval({
 }: {
   request: ApprovalRequest;
   width: number;
-  /** Rows the footer can spare for the detail; a longer diff loses its middle. */
+  // Rows the footer can spare for the detail; a longer diff loses its middle.
   maxDetail: number;
   onDecide(decision: "allow" | "deny"): void;
 }) {

@@ -37,18 +37,18 @@ export interface Chunk {
   text: string;
   color?: string;
   bold?: boolean;
-  /** The terminal's own dim attribute, so secondary text follows its theme
-   * instead of a grey chosen here that fights it. */
+  // The terminal's own dim attribute, so secondary text follows its theme
+  // instead of a grey chosen here that fights it.
   dim?: boolean;
-  /** Swaps foreground and background: how a block cursor is drawn without
-   * hiding the character it sits on. */
+  // Swaps foreground and background: how a block cursor is drawn without
+  // hiding the character it sits on.
   inverse?: boolean;
   bg?: string;
 }
 
 export type Line = Chunk[];
 
-/** Enough to pick a prompt out of the transcript, not enough to shout. */
+// Enough to pick a prompt out of the transcript, not enough to shout.
 const PROMPT_BACKGROUND = "#262626";
 
 const PLACEHOLDER = "ask infinity";
@@ -75,18 +75,15 @@ export function lineText(line: Line): string {
   return line.map((chunk) => chunk.text).join("");
 }
 
-/**
- * Footer lines only. Every cell a footer row covers has to be written, and an
- * ASCII space will not overwrite what the previous frame left there; see
- * opaque() in format.ts.
- */
+// Footer lines only. Every cell a footer row covers has to be written, and an
+// ASCII space will not overwrite what the previous frame left there; see
+// opaque() in format.ts.
 export function opaqueLines(lines: Line[]): Line[] {
   return lines.map((line) =>
     line.map((chunk) => ({ ...chunk, text: opaque(chunk.text) })),
   );
 }
 
-/** Trims a line to the width, dropping the chunks that no longer fit. */
 export function fitChunks(line: Line, width: number): Line {
   const fitted: Line = [];
   let used = 0;
@@ -100,7 +97,6 @@ export function fitChunks(line: Line, width: number): Line {
   return fitted;
 }
 
-/** Chunks become one styled run per line, with the newlines between them. */
 export function styledText(lines: Line[]): StyledText {
   const chunks: TextChunk[] = [];
 
@@ -175,10 +171,8 @@ export function itemLines(item: TranscriptItem, width: number): Line[] {
   }
 }
 
-/**
- * A prompt, shaded the whole width so it reads as a band. Each row is padded
- * because a background only covers the cells a chunk actually occupies.
- */
+// A prompt, shaded the whole width so it reads as a band. Each row is padded
+// because a background only covers the cells a chunk actually occupies.
 export function promptLines(text: string, width: number): Line[] {
   return wrap(text, width - 2).map((row): Line => {
     const body = padLine(row, width - 2);
@@ -189,26 +183,22 @@ export function promptLines(text: string, width: number): Line[] {
   });
 }
 
-/**
- * How many rows the composer needs before any of them is dropped. It asks
- * composerLines rather than counting the wrap itself: the cursor can add a row
- * the text alone does not, and a count that missed it would reserve one row too
- * few and scroll the composer for no reason.
- */
+// How many rows the composer needs before any of them is dropped. It asks
+// composerLines rather than counting the wrap itself: the cursor can add a row
+// the text alone does not, and a count that missed it would reserve one row too
+// few and scroll the composer for no reason.
 export function composerRows(buffer: Buffer, width: number): number {
   return composerLines(buffer, width, buffer.cursor, Infinity).length;
 }
 
-/**
- * The composer's rows, wrapped the way the terminal will show them, with the
- * cursor filling one cell. The caller passes the cursor's offset in the buffer,
- * or -1 to hide it; it is turned into a row and a column here, because only
- * this function knows where the text was broken.
- *
- * More text than `maxRows` scrolls rather than growing the footer past the
- * screen, and the window keeps the cursor in view, because the row being typed
- * on is the one row that must never be the one dropped.
- */
+// The composer's rows, wrapped the way the terminal will show them, with the
+// cursor filling one cell. The caller passes the cursor's offset in the buffer,
+// or -1 to hide it; it is turned into a row and a column here, because only
+// this function knows where the text was broken.
+//
+// More text than `maxRows` scrolls rather than growing the footer past the
+// screen, and the window keeps the cursor in view, because the row being typed
+// on is the one row that must never be the one dropped.
 export function composerLines(
   buffer: Buffer,
   width: number,
@@ -265,16 +255,16 @@ function composerBody(buffer: Buffer): string {
   return buffer.text === "" ? PLACEHOLDER : buffer.text;
 }
 
-/** The footer's own frame: the approval's border, heading and hint rows. */
+// The footer's own frame: the approval's border, heading and hint rows.
 const APPROVAL_FRAME = 4;
-/** The composer's top and bottom rules. */
+// The composer's top and bottom rules.
 const COMPOSER_FRAME = 2;
 
 export interface FooterWants {
-  /** Terminal rows, all of them. */
+  // Terminal rows, all of them.
   height: number;
   liveRows: number;
-  /** Rows of approval detail, or undefined when nothing is waiting. */
+  // Rows of approval detail, or undefined when nothing is waiting.
   detailRows: number | undefined;
   queuedRows: number;
   composerRows: number;
@@ -287,19 +277,17 @@ export interface FooterPlan {
   queued: number;
   composer: number;
   spinner: number;
-  /** What the renderer must reserve, which is never the whole screen. */
+  // What the renderer must reserve, which is never the whole screen.
   rows: number;
 }
 
-/**
- * Hands out the footer's rows in the order they can least afford to be lost.
- *
- * @opentui/core clamps footerHeight to the terminal's height and then computes
- * renderOffset from it, so a footer asking for more rows than the screen has
- * takes the whole screen: the scrollback region collapses to nothing, the
- * bounded scroll region is never installed, and appended output scrolls the
- * footer away. One row is therefore always left to the transcript.
- */
+// Hands out the footer's rows in the order they can least afford to be lost.
+//
+// @opentui/core clamps footerHeight to the terminal's height and then computes
+// renderOffset from it, so a footer asking for more rows than the screen has
+// takes the whole screen: the scrollback region collapses to nothing, the
+// bounded scroll region is never installed, and appended output scrolls the
+// footer away. One row is therefore always left to the transcript.
 export function footerPlan(wants: FooterWants): FooterPlan {
   let left = Math.max(1, wants.height - 1);
 
@@ -346,7 +334,6 @@ function clamp(value: number, low: number, high: number): number {
   return Math.max(low, Math.min(value, Math.max(low, high)));
 }
 
-/** A coloured marker, then wrapped body text indented to clear it. */
 function marked(
   glyph: string,
   color: string,
@@ -428,11 +415,11 @@ function banner(
 
 interface Row {
   text: string;
-  /** Offset into the wrapped string, so a cursor can be placed on a row. */
+  // Offset into the wrapped string, so a cursor can be placed on a row.
   start: number;
 }
 
-/** Breaks on spaces where it can, mid-word only when a word is longer than the line. */
+// Breaks on spaces where it can, mid-word only when a word is longer than the line.
 export function wrap(text: string, width: number): string[] {
   return wrapRows(text, width).map((row) => row.text);
 }

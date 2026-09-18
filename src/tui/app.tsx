@@ -58,7 +58,7 @@ import {
   withBanner,
 } from "./state/view-model.ts";
 
-/** Prompts accepted while a turn is running, before the composer refuses. */
+// Prompts accepted while a turn is running, before the composer refuses.
 const MAX_QUEUED = 5;
 
 interface Pending {
@@ -85,7 +85,7 @@ export function App({
   resumed: SessionState | undefined;
   initialTask: string | undefined;
   autoApprove: boolean;
-  /** Puts the terminal back and ends the run; the caller exits the process. */
+  // Puts the terminal back and ends the run; the caller exits the process.
   onExit(): void;
 }) {
   const renderer = useRenderer();

@@ -11,7 +11,6 @@ export interface ModelConfig {
   provider: string;
   model: string;
   baseUrl?: string;
-  contextTokens?: number;
 }
 
 export function createModel(config: ModelConfig): Model {

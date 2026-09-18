@@ -11,15 +11,20 @@ import type {
   ModelEvent,
   ModelRequest,
   StopReason,
-  ToolSpec,
 } from "../model/types.ts";
+import {
+  asError,
+  isAbort,
+  safeText,
+  stringifyContent,
+  toWireTool,
+} from "./wire.ts";
 
 const DEFAULT_BASE_URL = "http://localhost:11434/v1";
 
 export interface OpenAIOptions {
   model: string;
   baseUrl?: string;
-  apiKey?: string;
 }
 
 interface WireMessage {
@@ -57,7 +62,7 @@ export class OpenAIModel implements Model {
     this.id = options.model;
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     // Ollama ignores it; a hosted endpoint rejects the request without one.
-    this.apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? "ollama";
+    this.apiKey = process.env.OPENAI_API_KEY ?? "ollama";
   }
 
   async *stream(request: ModelRequest): AsyncIterable<ModelEvent> {
@@ -211,23 +216,6 @@ function toWireMessage(message: Message): WireMessage {
   return wire;
 }
 
-function toWireTool(tool: ToolSpec) {
-  return {
-    type: "function",
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema,
-    },
-  };
-}
-
-function stringifyContent(content: unknown): string {
-  if (content === null || content === undefined) return "";
-  if (typeof content === "string") return content;
-  return JSON.stringify(content);
-}
-
 function mapStopReason(reason: string): StopReason {
   switch (reason) {
     case "tool_calls":
@@ -258,22 +246,5 @@ async function* readSse(
       }
       newline = buffer.indexOf("\n");
     }
-  }
-}
-
-function isAbort(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
-}
-
-function asError(error: unknown, context: string): Error {
-  if (error instanceof Error) return new Error(`${context}: ${error.message}`);
-  return new Error(`${context}: ${String(error)}`);
-}
-
-async function safeText(response: Response): Promise<string> {
-  try {
-    return (await response.text()).slice(0, 500);
-  } catch {
-    return "";
   }
 }

@@ -43,7 +43,6 @@ export interface AgentOptions {
   // Counted for the whole run, not as a streak: an agent that reads a file
   // between two refused commands is still pinning the operator.
   maxDenials?: number;
-  contextTokens?: number;
   requestApproval(request: ApprovalRequest): Promise<ApprovalDecision>;
 }
 
@@ -63,7 +62,6 @@ export class Agent {
   private readonly workspace: string;
   private readonly maxTurns: number;
   private readonly maxDenials: number;
-  private readonly contextTokens: number;
   private readonly requestApproval: AgentOptions["requestApproval"];
 
   constructor(options: AgentOptions) {
@@ -72,7 +70,6 @@ export class Agent {
     this.workspace = options.workspace;
     this.maxTurns = options.maxTurns ?? DEFAULT_MAX_TURNS;
     this.maxDenials = options.maxDenials ?? DEFAULT_MAX_DENIALS;
-    this.contextTokens = options.contextTokens ?? DEFAULT_CONTEXT_TOKENS;
     this.requestApproval = options.requestApproval;
   }
 
@@ -187,7 +184,7 @@ export class Agent {
     const stream = this.model.stream({
       messages: messagesOf(session),
       tools: this.registry.specs(),
-      contextTokens: this.contextTokens,
+      contextTokens: DEFAULT_CONTEXT_TOKENS,
       signal,
     });
 

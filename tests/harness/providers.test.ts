@@ -32,10 +32,8 @@ interface Served {
   sent: SentBody;
 }
 
-/**
- * Serves one scripted response, runs a turn against it and shuts the server
- * down. Port 0 so parallel test files cannot collide.
- */
+// Serves one scripted response, runs a turn against it and shuts the server
+// down. Port 0 so parallel test files cannot collide.
 async function serve(
   chunks: unknown[],
   options: { status?: number; messages?: Message[] } = {},

@@ -82,10 +82,11 @@ export const editFile: Tool = {
       );
     }
 
+    const line = lineOf(contents, old_text);
     const decision = await ctx.requestApproval({
       tool: "edit_file",
       summary: `edit ${path}`,
-      detail: renderDiff(contents, old_text, new_text),
+      detail: renderDiff(line, old_text, new_text),
     });
     if (decision === "deny") {
       return fail(
@@ -103,13 +104,7 @@ export const editFile: Tool = {
       return fail(`cannot write ${path}: ${(error as Error).message}`);
     }
 
-    const lineOffset = contents
-      .slice(0, contents.indexOf(old_text))
-      .split("\n").length;
-    return ok(`Edited ${path} at line ${lineOffset}.`, {
-      path,
-      line: lineOffset,
-    });
+    return ok(`Edited ${path} at line ${line}.`, { path, line });
   },
 };
 
@@ -124,14 +119,15 @@ function countOccurrences(haystack: string, needle: string): number {
   return count;
 }
 
+function lineOf(contents: string, text: string): number {
+  return contents.slice(0, contents.indexOf(text)).split("\n").length;
+}
+
 function renderDiff(
-  contents: string,
+  startLine: number,
   oldText: string,
   newText: string,
 ): string {
-  const startLine = contents
-    .slice(0, contents.indexOf(oldText))
-    .split("\n").length;
   const removed = oldText.split("\n").map((line) => `- ${line}`);
   const added =
     newText === "" ? [] : newText.split("\n").map((line) => `+ ${line}`);

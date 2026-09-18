@@ -30,11 +30,9 @@ export function commitLines(renderer: CliRenderer, lines: Line[]): void {
   }));
 }
 
-/**
- * Clears what the terminal is holding and writes every item again at the
- * current width. Without this a resize leaves the transcript at whatever width
- * it happened to be written at.
- */
+// Clears what the terminal is holding and writes every item again at the
+// current width. Without this a resize leaves the transcript at whatever width
+// it happened to be written at.
 export function replay(
   renderer: CliRenderer,
   items: readonly TranscriptItem[],

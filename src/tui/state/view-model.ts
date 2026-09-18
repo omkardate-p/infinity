@@ -53,10 +53,8 @@ export function commitUser(state: ViewModel, text: string): ViewModel {
   };
 }
 
-/**
- * How long the exchange took, written under it. This is what separates one
- * exchange from the next; the caller owns the clock, so this stays pure.
- */
+// How long the exchange took, written under it. This is what separates one
+// exchange from the next; the caller owns the clock, so this stays pure.
 export function commitElapsed(
   state: ViewModel,
   ms: number,

@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { failureLine } from "../../checks.ts";
 import type { FixtureMeta, Verifier } from "../../types.ts";
 
 export const meta: FixtureMeta = {
@@ -14,20 +15,29 @@ export const meta: FixtureMeta = {
 export const task =
   "In src/client.ts, change the timeout used by connect() to 5000. Leave poll() alone.";
 
+const PROBE = `import { expect, test } from "bun:test";
+import { connect, poll } from "./src/client.ts";
+
+test("connect uses the new timeout and poll keeps its own", () => {
+  expect(connect("example.com")).toBe("connect example.com timeout=5000");
+  expect(poll("example.com")).toBe("poll example.com timeout=1000");
+});
+`;
+
 export const verify: Verifier = async ({ repo, run }) => {
-  const source = await readFile(join(repo, "src/client.ts"), "utf8");
-  const connectBody = source.slice(source.indexOf("export function connect"), source.indexOf("export function poll"));
-  const pollBody = source.slice(source.indexOf("export function poll"));
-
-  if (!connectBody.includes("const timeout = 5000;")) {
-    return { ok: false, reason: "connect() does not use a 5000 timeout" };
-  }
-  if (!pollBody.includes("const timeout = 1000;")) {
-    return { ok: false, reason: "poll() was changed as well, which the task forbade" };
-  }
-
   const tests = await run("bun test");
-  if (tests.exitCode !== 0) return { ok: false, reason: "tests fail" };
+  if (tests.exitCode !== 0) {
+    return { ok: false, reason: `tests fail: ${failureLine(tests)}` };
+  }
+
+  await writeFile(join(repo, "verify-probe.test.ts"), PROBE, "utf8");
+  const probe = await run("bun test verify-probe.test.ts");
+  if (probe.exitCode !== 0) {
+    return {
+      ok: false,
+      reason: `connect() or poll() is wrong: ${failureLine(probe)}`,
+    };
+  }
 
   return { ok: true, reason: "only connect() changed, with the suite passing" };
 };

@@ -32,7 +32,7 @@ const FIXTURES_DIR = join(import.meta.dir, "fixtures");
 const DEFAULT_MODEL = "ornith:9b";
 const DEFAULT_REPEATS = 3;
 const DEFAULT_MAX_TURNS = 25;
-/** A single run that hangs must not stall an overnight sweep. */
+// A single run that hangs must not stall an overnight sweep.
 const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 
 interface RunRecord {
@@ -45,9 +45,9 @@ interface RunRecord {
   stopReason: string;
   elapsedMs: number;
   toolCalls: Record<string, number>;
-  /** Calls the model made that our layer rejected before any tool ran. */
+  // Calls the model made that our layer rejected before any tool ran.
   malformedCalls: number;
-  /** edit_file calls that found no match or an ambiguous one. */
+  // edit_file calls that found no match or an ambiguous one.
   failedEdits: number;
   deniedCalls: number;
 }
@@ -239,7 +239,7 @@ async function runOnce(
   }
 }
 
-/** A verifier that throws is a broken fixture, and must not abort the sweep. */
+// A verifier that throws is a broken fixture, and must not abort the sweep.
 async function verifySafely(
   verify: Verifier,
   ctx: VerifyContext,

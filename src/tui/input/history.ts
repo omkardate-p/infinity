@@ -9,12 +9,11 @@
 
 import type { TranscriptItem } from "../../domain/messages.ts";
 import type { SessionEntry } from "../../harness/agent/state.ts";
-import type { ToolCall } from "../../harness/model/types.ts";
 import { empty, type ViewModel } from "../state/view-model.ts";
 
 export function restore(entries: SessionEntry[]): ViewModel {
   const items: TranscriptItem[] = [];
-  const requested = new Map<string, ToolCall>();
+  const requested = new Map<string, { name: string; args: unknown }>();
   let key = 0;
 
   for (const entry of entries) {

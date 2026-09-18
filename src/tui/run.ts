@@ -83,11 +83,9 @@ export async function runTui(options: TuiOptions): Promise<number> {
   });
 }
 
-/**
- * Puts the terminal back, once however many times it is called. A signal
- * handler and the exit handler both run on the way out of a Ctrl-C, and
- * destroy() a second time is not free.
- */
+// Puts the terminal back, once however many times it is called. A signal
+// handler and the exit handler both run on the way out of a Ctrl-C, and
+// destroy() a second time is not free.
 function restorer(renderer: CliRenderer): () => void {
   let done = false;
   return () => {

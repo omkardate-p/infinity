@@ -17,7 +17,7 @@ import { fail, ok } from "../../src/harness/tools/tool.ts";
 import { App } from "../../src/tui/app.tsx";
 import { makeWorkspace, ScriptedModel, type ScriptedTurn } from "../helpers.ts";
 
-async function mountWith(
+async function mount(
   script: ScriptedTurn[],
   options: {
     task?: string;
@@ -57,13 +57,9 @@ async function mountWith(
   return setup;
 }
 
-const mount = mountWith;
-
-/**
- * The footer writes no-break spaces so its cells always overwrite what the
- * previous frame left; see opaque() in tui/format.ts. Tests read the frame the
- * way a person sees it.
- */
+// The footer writes no-break spaces so its cells always overwrite what the
+// previous frame left; see opaque() in tui/rendering/format.ts. Tests read the frame the
+// way a person sees it.
 function frameOf(setup: { captureCharFrame(): string }): string {
   return setup.captureCharFrame().replaceAll("\u00a0", " ");
 }
@@ -168,7 +164,7 @@ describe("approval", () => {
       },
     ]);
 
-    const setup = await mountWith(
+    const setup = await mount(
       [
         { text: "running it", calls: [{ name: "risky", args: {} }] },
         { text: "done" },
@@ -207,7 +203,7 @@ describe("approval", () => {
       },
     ]);
 
-    const setup = await mountWith(
+    const setup = await mount(
       [
         { text: "running it", calls: [{ name: "risky", args: {} }] },
         { text: "done" },
@@ -337,12 +333,10 @@ describe("queued prompts", () => {
   });
 });
 
-/**
- * The footer is a region the renderer reserves. Ask for more rows than the
- * terminal has and @opentui/core clamps it to the whole screen: the transcript
- * region collapses, the bounded scroll region is never installed, and the
- * composer is what falls off the bottom.
- */
+// The footer is a region the renderer reserves. Ask for more rows than the
+// terminal has and @opentui/core clamps it to the whole screen: the transcript
+// region collapses, the bounded scroll region is never installed, and the
+// composer is what falls off the bottom.
 describe("the footer stays inside the terminal", () => {
   async function footerOf(options: {
     height: number;
@@ -371,7 +365,7 @@ describe("the footer stays inside the terminal", () => {
       },
     ]);
 
-    const setup = await mountWith(
+    const setup = await mount(
       [{ text: "editing", calls: [{ name: "edit_file", args: {} }] }],
       {
         task: "edit it",
@@ -470,11 +464,9 @@ describe("wide characters", () => {
   });
 });
 
-/**
- * A streaming answer belongs in the terminal's own scrollback as it arrives, so
- * the whole window scrolls. Holding it in the footer confines it to a small
- * pane that only settles into the window once the turn ends.
- */
+// A streaming answer belongs in the terminal's own scrollback as it arrives, so
+// the whole window scrolls. Holding it in the footer confines it to a small
+// pane that only settles into the window once the turn ends.
 describe("a streaming answer", () => {
   const WORDS = Array.from({ length: 90 }, (_, n) => `word${n}`).join(" ");
 

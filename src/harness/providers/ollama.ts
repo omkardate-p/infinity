@@ -10,11 +10,16 @@ import type {
   ModelEvent,
   ModelRequest,
   StopReason,
-  ToolSpec,
 } from "../model/types.ts";
+import {
+  asError,
+  isAbort,
+  safeText,
+  stringifyContent,
+  toWireTool,
+} from "./wire.ts";
 
 const DEFAULT_BASE_URL = "http://localhost:11434";
-const DEFAULT_CONTEXT_TOKENS = 32768;
 
 export interface OllamaOptions {
   model: string;
@@ -35,7 +40,7 @@ interface WireToolCall {
   function?: {
     index?: number;
     name?: string;
-    /** Ollama sends a parsed object here; OpenAI sends a JSON string. */
+    // Ollama sends a parsed object here; OpenAI sends a JSON string.
     arguments?: unknown;
   };
 }
@@ -71,7 +76,9 @@ export class OllamaModel implements Model {
       // reasoning then arrives inside content with an unbalanced closing tag.
       think: true,
       options: {
-        num_ctx: request.contextTokens ?? DEFAULT_CONTEXT_TOKENS,
+        ...(request.contextTokens !== undefined
+          ? { num_ctx: request.contextTokens }
+          : {}),
         ...(request.temperature !== undefined
           ? { temperature: request.temperature }
           : {}),
@@ -219,23 +226,6 @@ function toWireMessage(message: Message): WireMessage {
   return wire;
 }
 
-function toWireTool(tool: ToolSpec) {
-  return {
-    type: "function",
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema,
-    },
-  };
-}
-
-function stringifyContent(content: unknown): string {
-  if (content === null || content === undefined) return "";
-  if (typeof content === "string") return content;
-  return JSON.stringify(content);
-}
-
 function mapStopReason(
   reason: string | undefined,
   hadToolCalls: boolean,
@@ -270,21 +260,4 @@ async function* readNdjson(
 
   const tail = buffer.trim();
   if (tail) yield JSON.parse(tail) as WireChunk;
-}
-
-function isAbort(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
-}
-
-function asError(error: unknown, context: string): Error {
-  if (error instanceof Error) return new Error(`${context}: ${error.message}`);
-  return new Error(`${context}: ${String(error)}`);
-}
-
-async function safeText(response: Response): Promise<string> {
-  try {
-    return (await response.text()).slice(0, 500);
-  } catch {
-    return "";
-  }
 }

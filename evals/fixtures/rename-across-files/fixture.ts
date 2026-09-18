@@ -1,3 +1,4 @@
+import { failureLine } from "../../checks.ts";
 import type { FixtureMeta, Verifier } from "../../types.ts";
 
 export const meta: FixtureMeta = {
@@ -14,10 +15,18 @@ export const task =
 export const verify: Verifier = async ({ run }) => {
   const stale = await run("grep -rn 'fetchUser' src || true");
   if (stale.stdout.trim()) {
-    return { ok: false, reason: `fetchUser still appears: ${stale.stdout.trim().split("\n")[0]}` };
+    return {
+      ok: false,
+      reason: `fetchUser still appears: ${stale.stdout.trim().split("\n")[0]}`,
+    };
   }
 
-  for (const file of ["src/api.ts", "src/profile.ts", "src/greeting.ts", "src/users.test.ts"]) {
+  for (const file of [
+    "src/api.ts",
+    "src/profile.ts",
+    "src/greeting.ts",
+    "src/users.test.ts",
+  ]) {
     const contents = await run(`cat ${file}`);
     if (!contents.stdout.includes("loadUser")) {
       return { ok: false, reason: `${file} does not mention loadUser` };
@@ -25,7 +34,11 @@ export const verify: Verifier = async ({ run }) => {
   }
 
   const tests = await run("bun test");
-  if (tests.exitCode !== 0) return { ok: false, reason: "tests fail after the rename" };
+  if (tests.exitCode !== 0)
+    return {
+      ok: false,
+      reason: `tests fail after the rename: ${failureLine(tests)}`,
+    };
 
   return { ok: true, reason: "renamed in all four files with tests passing" };
 };
