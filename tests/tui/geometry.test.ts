@@ -23,6 +23,9 @@ import {
   type Line,
   lineText,
   lineWidth,
+  type MenuEntry,
+  menuLines,
+  menuRows,
   promptLines,
   styledText,
 } from "../../src/tui/rendering/lines.ts";
@@ -150,6 +153,62 @@ describe("the composer", () => {
   });
 });
 
+// Names and summaries are ordinary text, so the menu is measured against the
+// same corpus everything else is.
+function menu(text: string): MenuEntry[] {
+  return Object.keys(CORPUS).map((name, index) => ({
+    name: `/${name}`,
+    description: text,
+    match: index % 2 === 0 ? { start: 1, end: 3 } : undefined,
+  }));
+}
+
+describe("the command menu", () => {
+  for (const [name, text] of Object.entries(CORPUS)) {
+    test(name, () => {
+      const entries = menu(text);
+      for (const width of WIDTHS) {
+        for (let selected = 0; selected < entries.length; selected++) {
+          for (const maxRows of [1, 3, 10, Number.POSITIVE_INFINITY]) {
+            const lines = menuLines(entries, selected, width, maxRows);
+            expect(lines.length).toBeLessThanOrEqual(maxRows);
+            for (const line of lines) {
+              expect(lineWidth(line)).toBeLessThanOrEqual(width);
+              expect(lineText(line)).not.toContain("\n");
+            }
+          }
+        }
+      }
+    });
+  }
+
+  test("the selected command is on screen however short the list is cut", () => {
+    const entries = menu("a summary that runs on for a while and then wraps");
+    for (const width of [24, 40, 80]) {
+      for (let selected = 0; selected < entries.length; selected++) {
+        const shown = menuLines(entries, selected, width, 3)
+          .map(lineText)
+          .join("\n");
+        expect(shown).toContain(entries[selected]!.name);
+      }
+    }
+  });
+
+  test("what it asks the footer for is what it draws", () => {
+    const entries = menu("short");
+    for (const width of WIDTHS) {
+      expect(
+        menuLines(entries, 0, width, Number.POSITIVE_INFINITY).length,
+      ).toBe(menuRows(entries, width));
+    }
+  });
+
+  test("nothing at all to show is no rows at all", () => {
+    expect(menuLines([], 0, 80, 10)).toEqual([]);
+    expect(menuRows([], 80)).toBe(0);
+  });
+});
+
 describe("the footer is never taller than the terminal", () => {
   test("whatever every part asks for", () => {
     for (let height = 3; height <= 60; height += 1) {
@@ -159,6 +218,7 @@ describe("the footer is never taller than the terminal", () => {
             height,
             liveRows: 6,
             detailRows,
+            menuRows: 14,
             queuedRows: 25,
             composerRows: composer,
             spinner: true,
@@ -174,11 +234,44 @@ describe("the footer is never taller than the terminal", () => {
     }
   });
 
+  test("a menu of any length stops at ten rows", () => {
+    const plan = footerPlan({
+      height: 60,
+      liveRows: 0,
+      detailRows: undefined,
+      menuRows: 400,
+      queuedRows: 0,
+      composerRows: 1,
+      spinner: false,
+    });
+
+    expect(plan.menu).toBe(10);
+  });
+
+  test("the menu is served before the transcript's own rows", () => {
+    const plan = footerPlan({
+      height: 13,
+      liveRows: 20,
+      detailRows: undefined,
+      menuRows: 8,
+      queuedRows: 20,
+      composerRows: 1,
+      spinner: false,
+    });
+
+    expect(plan.menu).toBe(8);
+    expect(plan.live).toBe(0);
+    expect(plan.queued).toBe(0);
+    expect(plan.composer).toBeGreaterThanOrEqual(1);
+    expect(plan.rows).toBeLessThanOrEqual(12);
+  });
+
   test("an approval keeps its question on screen before anything else", () => {
     const plan = footerPlan({
       height: 24,
       liveRows: 6,
       detailRows: 60,
+      menuRows: 0,
       queuedRows: 12,
       composerRows: 1,
       spinner: false,
@@ -235,6 +328,15 @@ describe("the renderer draws the rows the layout counted", () => {
     for (const width of [40, 80]) {
       for (const text of Object.values(CORPUS)) {
         const lines = promptLines(text, width - 1);
+        expect(await rowsUsed(lines, width)).toBe(lines.length);
+      }
+    }
+  });
+
+  test("the menu occupies the rows the footer reserved for it", async () => {
+    for (const width of [40, 80]) {
+      for (const text of Object.values(CORPUS)) {
+        const lines = menuLines(menu(text), 2, width - 1, 6);
         expect(await rowsUsed(lines, width)).toBe(lines.length);
       }
     }

@@ -147,6 +147,8 @@ async function main(): Promise<number> {
   if (parsed.useTui && stdout.isTTY) {
     return runTui({
       model,
+      createModel: (name) =>
+        createModel({ provider: parsed.provider, model: name }),
       registry,
       workspace,
       version: pkg.version,

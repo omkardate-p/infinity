@@ -24,6 +24,7 @@ import {
   cells,
   elapsed,
   elide,
+  elideLine,
   fitLine,
   graphemes,
   opaque,
@@ -153,6 +154,9 @@ export function itemLines(item: TranscriptItem, width: number): Line[] {
     case "error":
       return marked("✗ ", "red", item.message, width, "red");
 
+    case "info":
+      return marked("◆ ", "cyan", item.text, width);
+
     case "notice": {
       const turns = `${item.turns} ${item.turns === 1 ? "turn" : "turns"}`;
       return [
@@ -255,10 +259,164 @@ function composerBody(buffer: Buffer): string {
   return buffer.text === "" ? PLACEHOLDER : buffer.text;
 }
 
+// The name column stops growing here; past it a long name is cut rather than
+// starving the summary beside it.
+const MENU_NAME_MAX = 28;
+const MENU_GAP = 2;
+// Two rows of summary: as much as the eye takes in while the list is filtering.
+const MENU_DESCRIPTION_ROWS = 2;
+// Narrower than this and the summary column is dropped instead of being shown
+// one word wide.
+const MENU_DESCRIPTION_MIN = 16;
+
+export interface MenuEntry {
+  name: string;
+  description: string;
+  // Where the query matched the name, so this file does not search it again to
+  // decide what to embolden.
+  match: { start: number; end: number } | undefined;
+}
+
+// How many rows the menu would take unbounded, which is what the footer plan
+// clamps. It asks menuLines for the same reason composerRows does: the wrap
+// decides the count, and a second count would disagree with it.
+export function menuRows(entries: MenuEntry[], width: number): number {
+  return menuLines(entries, 0, width, Number.POSITIVE_INFINITY).length;
+}
+
+// The command menu: names down the left, summaries beside them, the selected
+// row picked out. More entries than `maxRows` scroll, keeping the selected one
+// whole and on screen, because a selection nobody can see cannot be corrected.
+export function menuLines(
+  entries: MenuEntry[],
+  selected: number,
+  width: number,
+  maxRows: number,
+): Line[] {
+  if (entries.length === 0 || maxRows < 1) return [];
+
+  const longest = entries.reduce(
+    (most, entry) => Math.max(most, cells(entry.name)),
+    0,
+  );
+  const nameWidth = Math.max(
+    0,
+    Math.min(longest, MENU_NAME_MAX, width - MENU_GAP),
+  );
+  const descriptionWidth = width - nameWidth - MENU_GAP;
+  const blocks = entries.map((entry, index) =>
+    entryLines(
+      entry,
+      index === selected,
+      nameWidth,
+      descriptionWidth >= MENU_DESCRIPTION_MIN ? descriptionWidth : 0,
+    ),
+  );
+
+  const window = visibleEntries(
+    blocks.map((block) => block.length),
+    Math.max(0, Math.min(selected, entries.length - 1)),
+    maxRows,
+  );
+  return blocks
+    .slice(window.first, window.last)
+    .flat()
+    .slice(0, maxRows === Number.POSITIVE_INFINITY ? undefined : maxRows);
+}
+
+function entryLines(
+  entry: MenuEntry,
+  selected: boolean,
+  nameWidth: number,
+  descriptionWidth: number,
+): Line[] {
+  const name = nameChunks(entry, selected, nameWidth);
+  if (descriptionWidth <= 0) return [name];
+
+  const all = wrap(entry.description, descriptionWidth);
+  const shown = all.slice(0, MENU_DESCRIPTION_ROWS);
+  const last = shown.length - 1;
+  if (all.length > shown.length && last >= 0) {
+    shown[last] = elideLine(
+      `${shown[last]} ${all[shown.length]}`,
+      descriptionWidth,
+    );
+  }
+
+  const indent: Line = [{ text: " ".repeat(nameWidth + MENU_GAP) }];
+  return shown.map(
+    (row, index): Line => [
+      ...(index === 0 ? name : indent),
+      selected ? { text: row, color: "cyan" } : { text: row, dim: true },
+    ],
+  );
+}
+
+function nameChunks(
+  entry: MenuEntry,
+  selected: boolean,
+  nameWidth: number,
+): Line {
+  const text = elideLine(entry.name, nameWidth);
+  const pad = { text: " ".repeat(nameWidth - cells(text) + MENU_GAP) };
+  const base: Chunk = selected
+    ? { text: "", color: "yellow", bold: true }
+    : { text: "", dim: true };
+
+  const span = entry.match;
+  const end = span ? Math.min(span.end, text.length) : 0;
+  if (!span || span.start >= end) return [{ ...base, text }, pad];
+
+  const chunks: Line = [];
+  const before = text.slice(0, span.start);
+  if (before) chunks.push({ ...base, text: before });
+  chunks.push({
+    ...base,
+    text: text.slice(span.start, end),
+    bold: true,
+    dim: false,
+  });
+  const after = text.slice(end);
+  if (after) chunks.push({ ...base, text: after });
+  chunks.push(pad);
+  return chunks;
+}
+
+// Grows the window outwards from the selected entry, downwards first, and never
+// splits an entry across the edge: half a summary reads as a different command.
+function visibleEntries(
+  heights: number[],
+  selected: number,
+  maxRows: number,
+): { first: number; last: number } {
+  let first = selected;
+  let last = selected;
+  let used = heights[selected] ?? 0;
+
+  for (;;) {
+    const next = last + 1 < heights.length ? heights[last + 1]! : undefined;
+    if (next !== undefined && used + next <= maxRows) {
+      used += next;
+      last += 1;
+      continue;
+    }
+    const previous = first > 0 ? heights[first - 1]! : undefined;
+    if (previous !== undefined && used + previous <= maxRows) {
+      used += previous;
+      first -= 1;
+      continue;
+    }
+    return { first, last: last + 1 };
+  }
+}
+
 // The footer's own frame: the approval's border, heading and hint rows.
 const APPROVAL_FRAME = 4;
 // The composer's top and bottom rules.
 const COMPOSER_FRAME = 2;
+// However many commands match, the menu stops here: it is a list to pick from,
+// not the screen.
+const MENU_MAX_ROWS = 10;
 
 export interface FooterWants {
   // Terminal rows, all of them.
@@ -266,6 +424,7 @@ export interface FooterWants {
   liveRows: number;
   // Rows of approval detail, or undefined when nothing is waiting.
   detailRows: number | undefined;
+  menuRows: number;
   queuedRows: number;
   composerRows: number;
   spinner: boolean;
@@ -274,6 +433,7 @@ export interface FooterWants {
 export interface FooterPlan {
   live: number;
   detail: number;
+  menu: number;
   queued: number;
   composer: number;
   spinner: number;
@@ -307,6 +467,11 @@ export function footerPlan(wants: FooterWants): FooterPlan {
   const approval = wants.detailRows === undefined ? 0 : detail + APPROVAL_FRAME;
   left -= approval;
 
+  // Ahead of the transcript's own rows: the menu is what the operator is
+  // working in, and a menu with no rows is a list nobody can pick from.
+  const menu = clamp(wants.menuRows, 0, Math.min(left, MENU_MAX_ROWS));
+  left -= menu;
+
   const spinner = wants.spinner && left >= 1 ? 1 : 0;
   left -= spinner;
 
@@ -316,11 +481,19 @@ export function footerPlan(wants: FooterWants): FooterPlan {
   const queued = clamp(wants.queuedRows, 0, left);
 
   const rows =
-    status + composer + COMPOSER_FRAME + approval + spinner + live + queued;
+    status +
+    composer +
+    COMPOSER_FRAME +
+    approval +
+    menu +
+    spinner +
+    live +
+    queued;
 
   return {
     live,
     detail,
+    menu,
     queued,
     composer,
     spinner,

@@ -33,4 +33,5 @@ export type TranscriptItem =
       content: string;
     }
   | { key: number; kind: "error"; message: string }
+  | { key: number; kind: "info"; text: string }
   | { key: number; kind: "notice"; reason: AgentStopReason; turns: number };

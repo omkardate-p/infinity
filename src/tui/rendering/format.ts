@@ -81,6 +81,14 @@ export function fitLine(text: string, width: number): string {
   return kept;
 }
 
+// Cuts like fitLine, but says so: a description the menu had to shorten ends
+// in an ellipsis rather than stopping mid-word as though that were the text.
+export function elideLine(text: string, width: number): string {
+  if (width <= 0) return "";
+  if (cells(text) <= width) return fitLine(text, width);
+  return `${fitLine(text, width - 1)}\u2026`;
+}
+
 // Fits, then fills to exactly `width` cells so the line covers every one.
 export function padLine(text: string, width: number): string {
   const fitted = fitLine(text, width);

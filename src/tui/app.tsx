@@ -34,8 +34,17 @@ import type {
   ApprovalDecision,
   ApprovalRequest,
 } from "../harness/tools/tool.ts";
+import type { CommandContext } from "./commands/command.ts";
+import {
+  type CommandMatch,
+  commandQuery,
+  defaultCommands,
+  matchCommands,
+  parseCommand,
+} from "./commands/registry.ts";
 import { Approval } from "./components/approval.tsx";
 import { Composer } from "./components/composer.tsx";
+import { Menu } from "./components/menu.tsx";
 import { Spinner, StatusLine } from "./components/status.tsx";
 import { type Buffer, emptyBuffer } from "./input/editor.ts";
 import { restore } from "./input/history.ts";
@@ -44,6 +53,8 @@ import {
   composerRows,
   footerPlan,
   itemLines,
+  type MenuEntry,
+  menuRows,
   opaqueLines,
   promptLines,
   styledText,
@@ -51,6 +62,7 @@ import {
 import { commitLines, replay } from "./rendering/scrollback.ts";
 import {
   commitElapsed,
+  commitInfo,
   commitUser,
   empty,
   reduce,
@@ -67,7 +79,8 @@ interface Pending {
 }
 
 export function App({
-  model,
+  model: startingModel,
+  createModel,
   registry,
   workspace,
   version,
@@ -78,6 +91,9 @@ export function App({
   onExit,
 }: {
   model: Model;
+  // Resolves a model name for /model. The caller owns the provider, so the
+  // interface still never learns which one is behind a name.
+  createModel(name: string): Model;
   registry: ToolRegistry;
   workspace: string;
   version: string;
@@ -96,13 +112,18 @@ export function App({
   // after it are not drawn at all.
   const usable = width - 1;
 
+  const [model, setModel] = useState(startingModel);
   const [view, setView] = useState<ViewModel>(() =>
     withBanner(
       resumed ? { ...restore(resumed.entries), turn: resumed.turns } : empty(),
-      { model: model.id, workspace, version },
+      { model: startingModel.id, workspace, version },
     ),
   );
   const [buffer, setBuffer] = useState<Buffer>(emptyBuffer);
+  const [selected, setSelected] = useState(0);
+  // Escape closes the menu without clearing what was typed, so it stays shut
+  // until the query changes.
+  const [dismissed, setDismissed] = useState(false);
   const [pending, setPending] = useState<Pending | undefined>(undefined);
   const [since, setSince] = useState(0);
   const [exitHint, setExitHint] = useState(false);
@@ -128,6 +149,42 @@ export function App({
   );
   const committedRef = useRef(view.committed);
   committedRef.current = view.committed;
+
+  const commands = useMemo(defaultCommands, []);
+  const query = commandQuery(buffer.text);
+  const matches =
+    query === undefined || dismissed ? [] : matchCommands(commands, query);
+  const menuOpen = matches.length > 0;
+  const active = Math.min(selected, Math.max(0, matches.length - 1));
+  const entries: MenuEntry[] = matches.map((match) => ({
+    name: `/${match.command.name}`,
+    description: match.command.description,
+    match:
+      match.end > match.start
+        ? { start: match.start, end: match.end }
+        : undefined,
+  }));
+
+  // Read by the key handler, which runs against whatever the last render left
+  // rather than the closure it was made in.
+  const menuRef = useRef<{ matches: CommandMatch[]; selected: number }>({
+    matches: [],
+    selected: 0,
+  });
+  menuRef.current = { matches, selected: active };
+  // An approval owns the keyboard while it is up, menu or no menu.
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
+  // A filter that changed is a different list, so the selection starts again
+  // and a dismissed menu is allowed back.
+  const queriedRef = useRef(query);
+  useEffect(() => {
+    if (queriedRef.current === query) return;
+    queriedRef.current = query;
+    setSelected(0);
+    setDismissed(false);
+  }, [query]);
 
   // Greedy word wrap settles every row but the last one, so an answer's earlier
   // rows can go into the scrollback while the rest of it is still arriving and
@@ -172,6 +229,18 @@ export function App({
     // written again, rewrapped, on the next frame.
     streamingRef.current = undefined;
   });
+
+  // The terminal's copy of the transcript is append-only, so a transcript that
+  // is not a continuation has to be cleared and written again from nothing.
+  const replaceTranscript = useCallback(
+    (next: ViewModel) => {
+      setView(withBanner(next, { model: model.id, workspace, version }));
+      replay(renderer, [], usable);
+      writtenRef.current = 0;
+      streamingRef.current = undefined;
+    },
+    [renderer, usable, model, workspace, version],
+  );
 
   const agent = useMemo(
     () =>
@@ -241,10 +310,70 @@ export function App({
     [agent],
   );
 
+  const ctx: CommandContext = {
+    workspace,
+    model: model.id,
+    commands,
+    setSession: (session) => {
+      sessionRef.current = session;
+    },
+    replaceTranscript,
+    setModel: (name) => setModel(createModel(name)),
+    onExit,
+  };
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
+
+  const runCommand = useCallback(
+    async (text: string) => {
+      const { name, args } = parseCommand(text);
+      const command = commands.find((candidate) => candidate.name === name);
+      if (!command) {
+        setView((current) =>
+          commitInfo(current, `No command /${name}. Type / to see the list.`),
+        );
+        return;
+      }
+      if (command.needsIdle && controllerRef.current) {
+        setView((current) =>
+          commitInfo(
+            current,
+            `/${name} waits until the turn ends; Esc interrupts it.`,
+          ),
+        );
+        return;
+      }
+
+      try {
+        const output = await command.run(args, ctxRef.current);
+        if (output !== undefined) {
+          setView((current) => commitInfo(current, output));
+        }
+      } catch (error) {
+        setView((current) =>
+          commitInfo(
+            current,
+            error instanceof Error ? error.message : String(error),
+          ),
+        );
+      }
+    },
+    [commands],
+  );
+  const runCommandRef = useRef(runCommand);
+  runCommandRef.current = runCommand;
+
   // Typing is never blocked. A prompt sent while a turn is running waits its
   // turn instead of being refused, and is shown above the composer until then.
   const submit = useCallback(
     (text: string): boolean => {
+      // A command is the interface's own work, so it never reaches the model
+      // and never queues behind a turn.
+      if (text.startsWith("/")) {
+        void runCommandRef.current(text);
+        setBuffer(emptyBuffer());
+        return true;
+      }
       if (controllerRef.current === undefined) {
         void startRun(text);
         return true;
@@ -275,6 +404,34 @@ export function App({
 
   useKeyboard((key) => {
     const controller = controllerRef.current;
+    const menu = menuRef.current;
+
+    if (menu.matches.length > 0 && pendingRef.current === undefined) {
+      const count = menu.matches.length;
+      const chosen = menu.matches[menu.selected]?.command;
+      if (key.name === "escape") {
+        setDismissed(true);
+        return;
+      }
+      if (key.name === "up") {
+        setSelected((menu.selected + count - 1) % count);
+        return;
+      }
+      if (key.name === "down") {
+        setSelected((menu.selected + 1) % count);
+        return;
+      }
+      if (chosen && key.name === "tab") {
+        // Completed, not run: an argument goes after the name.
+        setBuffer({ text: `/${chosen.name} `, cursor: chosen.name.length + 2 });
+        return;
+      }
+      if (chosen && (key.name === "return" || key.name === "enter")) {
+        setBuffer(emptyBuffer());
+        void runCommandRef.current(`/${chosen.name}`);
+        return;
+      }
+    }
 
     if (key.name === "escape" && controller) {
       controller.abort();
@@ -311,6 +468,7 @@ export function App({
     height: screenHeight,
     liveRows: tail.length,
     detailRows: pending ? (detail ? detail.split("\n").length : 0) : undefined,
+    menuRows: menuOpen ? menuRows(entries, usable) : 0,
     queuedRows: queued.reduce(
       (total, text) => total + promptLines(text, usable).length,
       0,
@@ -361,7 +519,17 @@ export function App({
         onChange={setBuffer}
         onSubmit={submit}
         isActive={composing}
+        navigation={!menuOpen}
       />
+
+      {plan.menu > 0 ? (
+        <Menu
+          entries={entries}
+          selected={active}
+          width={usable}
+          maxRows={plan.menu}
+        />
+      ) : null}
       {exitHint ? (
         <text attributes={TextAttributes.DIM}>
           {opaque(padLine("  Press Ctrl-C again to exit", usable))}

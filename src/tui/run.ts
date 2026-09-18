@@ -39,6 +39,7 @@ const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT"] as const;
 
 export interface TuiOptions {
   model: Model;
+  createModel(name: string): Model;
   registry: ToolRegistry;
   workspace: string;
   version: string;

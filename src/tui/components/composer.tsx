@@ -32,6 +32,7 @@ export function Composer({
   onChange,
   onSubmit,
   isActive,
+  navigation,
 }: {
   buffer: Buffer;
   width: number;
@@ -41,6 +42,9 @@ export function Composer({
   // Returns false when the prompt was refused, so the text is kept.
   onSubmit(text: string): boolean;
   isActive: boolean;
+  // False while the command menu is open: Enter and the arrows move the
+  // selection then, and typing carries on as usual.
+  navigation: boolean;
 }) {
   // The key handler is subscribed once and several keystrokes can arrive before
   // React re-renders, so the buffer is mirrored here and updated as each edit
@@ -86,6 +90,7 @@ export function Composer({
 
   useKeyboard((key) => {
     if (!isActive) return;
+    if (!navigation && NAVIGATION.has(key.name)) return;
 
     switch (key.name) {
       case "return":
@@ -153,3 +158,7 @@ export function Composer({
 
 // Half a blink: how long the cursor stays shown, and then hidden.
 const BLINK_MS = 500;
+
+// The keys the composer hands over while something else is being chosen with
+// them.
+const NAVIGATION = new Set(["return", "enter", "up", "down"]);

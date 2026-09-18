@@ -18,11 +18,15 @@ src/
 tui/
 ├── app.tsx       the root: owns the transcript, the composer buffer, the run
 ├── run.ts        mounts the renderer and restores the terminal on the way out
+├── commands/     one file per slash command, and the menu's filtering
 ├── components/   render; they hold no layout arithmetic
 ├── rendering/    pure: what a line is, how wide it is, what reaches the scrollback
 ├── input/        the prompt buffer and resume, pure; the key probe, which reads a real terminal
 └── state/        pure: the reducer that folds events into transcript items
 ```
+
+A command changes what the interface shows or which session is open, and never
+reaches the agent loop: everything one may touch arrives on its context.
 
 `rendering/`, `state/`, and the prompt buffer and resume in `input/` compute from values and touch no terminal, so `tests/tui/` covers them without one. `app.tsx`, `run.ts` and the key probe need a terminal, and what they do is checked by hand. Layout arithmetic never goes inside a component: a component that measures a string is a defect.
 

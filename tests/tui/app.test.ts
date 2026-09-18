@@ -32,6 +32,7 @@ async function mount(
   const setup = await testRender(
     createElement(App, {
       model: new ScriptedModel(script, options.delayMs ?? 0),
+      createModel: (name: string) => new ScriptedModel([{ text: name }]),
       registry: options.registry ?? new ToolRegistry([]),
       workspace: workspace.root,
       version: "0.0.0",
@@ -415,6 +416,111 @@ describe("the footer stays inside the terminal", () => {
         expect(Bun.stringWidth(line)).toBeLessThanOrEqual(width);
       }
     }
+  });
+});
+
+describe("the command menu", () => {
+  test("a slash offers the commands", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/");
+    await setup.flush();
+
+    const frame = frameOf(setup);
+    expect(frame).toContain("/help");
+    expect(frame).toContain("/clear");
+  });
+
+  test("the list narrows to what was typed", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/cle");
+    await setup.flush();
+
+    const frame = frameOf(setup);
+    expect(frame).toContain("/clear");
+    expect(frame).not.toContain("/sessions");
+  });
+
+  test("Tab completes the name rather than running it", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/mod");
+    await setup.flush();
+    setup.mockInput.pressTab();
+    await setup.flush();
+
+    const frame = frameOf(setup);
+    expect(frame).toContain("/model");
+    // The list is gone, so what is left is the composer waiting for a name.
+    expect(frame).not.toContain("Switch the model");
+  });
+
+  test("the arrows move the selection", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/");
+    await setup.flush();
+    setup.mockInput.pressArrow("down");
+    await setup.flush();
+    setup.mockInput.pressTab();
+    await setup.flush();
+
+    expect(frameOf(setup)).toContain("/clear");
+  });
+
+  test("Enter runs the selected command", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/help");
+    await setup.flush();
+    setup.mockInput.pressEnter();
+
+    await setup.waitFor(() =>
+      setup.externalOutput
+        .takeText()
+        .includes("Clear the screen and start a new session"),
+    );
+  });
+
+  test("Escape closes the list and keeps what was typed", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/cle");
+    await setup.flush();
+    setup.mockInput.pressEscape();
+    await setup.flush();
+
+    const frame = frameOf(setup);
+    expect(frame).toContain("/cle");
+    expect(frame).not.toContain("Clear the screen");
+  });
+
+  test("a command nobody has is said so, not sent to the model", async () => {
+    const setup = await mount([{ text: "hello" }]);
+
+    await setup.mockInput.typeText("/nope");
+    await setup.flush();
+    setup.mockInput.pressEnter();
+
+    await setup.waitFor(() =>
+      setup.externalOutput.takeText().includes("No command /nope"),
+    );
+  });
+
+  test("/clear puts the session back to a new one", async () => {
+    const setup = await mount([{ text: "an answer" }], { task: "a question" });
+
+    await setup.waitFor(() =>
+      setup.externalOutput.takeText().includes("an answer"),
+    );
+    await setup.waitFor(() => !frameOf(setup).includes("new session"));
+
+    await setup.mockInput.typeText("/clear");
+    await setup.flush();
+    setup.mockInput.pressEnter();
+
+    await setup.waitFor(() => frameOf(setup).includes("new session"));
   });
 });
 

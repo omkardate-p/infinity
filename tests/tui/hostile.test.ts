@@ -215,6 +215,7 @@ describe("the footer plan cannot be argued into taking the screen", () => {
           height,
           liveRows: ask,
           detailRows: ask,
+          menuRows: ask,
           queuedRows: ask,
           composerRows: ask,
           spinner: true,
@@ -225,6 +226,7 @@ describe("the footer plan cannot be argued into taking the screen", () => {
         for (const part of [
           plan.live,
           plan.detail,
+          plan.menu,
           plan.queued,
           plan.spinner,
         ]) {

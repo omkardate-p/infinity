@@ -70,6 +70,14 @@ export function commitElapsed(
   };
 }
 
+export function commitInfo(state: ViewModel, text: string): ViewModel {
+  return {
+    ...state,
+    committed: [...state.committed, { key: state.nextKey, kind: "info", text }],
+    nextKey: state.nextKey + 1,
+  };
+}
+
 export function reduce(state: ViewModel, event: AgentEvent): ViewModel {
   switch (event.type) {
     case "turn_start":
