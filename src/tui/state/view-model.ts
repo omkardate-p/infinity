@@ -7,7 +7,11 @@
  * from the components that render it.
  */
 
-import type { AgentEvent, AgentStopReason } from "../../domain/events.ts";
+import {
+  type AgentEvent,
+  type AgentStopReason,
+  CONTEXT_FULL,
+} from "../../domain/events.ts";
 import type { TranscriptItem } from "../../domain/messages.ts";
 
 export interface ViewModel {
@@ -15,6 +19,9 @@ export interface ViewModel {
   // At most one item is ever unfinished: text_delta opens an assistant item,
   // tool_start commits it and opens a tool item, tool_end commits that.
   live: TranscriptItem | undefined;
+  // How much of the model's window the last turn filled, and whether the
+  // transcript has already said that it is filling up.
+  context: { used: number; window: number; warned: boolean } | undefined;
   turn: number;
   running: boolean;
   nextKey: number;
@@ -24,6 +31,7 @@ export function empty(): ViewModel {
   return {
     committed: [],
     live: undefined,
+    context: undefined,
     turn: 0,
     running: false,
     nextKey: 0,
@@ -138,6 +146,35 @@ export function reduce(state: ViewModel, event: AgentEvent): ViewModel {
           },
         ],
         live: undefined,
+      };
+    }
+
+    case "context": {
+      const full = event.promptTokens / event.contextTokens;
+      const warned = state.context?.warned ?? false;
+      const context = {
+        used: event.promptTokens,
+        window: event.contextTokens,
+        warned: warned || full >= CONTEXT_FULL,
+      };
+      if (warned || full < CONTEXT_FULL) return { ...state, context };
+
+      // Said once, and after the answer it came in behind, so the transcript
+      // reads in the order the run happened.
+      return {
+        ...state,
+        context,
+        committed: [
+          ...commitLive(state),
+          {
+            key: state.nextKey,
+            kind: "context",
+            used: event.promptTokens,
+            window: event.contextTokens,
+          },
+        ],
+        live: undefined,
+        nextKey: state.nextKey + 1,
       };
     }
 

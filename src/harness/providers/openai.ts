@@ -50,6 +50,7 @@ interface WireDelta {
 
 interface WireChunk {
   choices?: { delta?: WireDelta; finish_reason?: string | null }[];
+  usage?: { prompt_tokens?: number };
   error?: { message?: string };
 }
 
@@ -71,6 +72,8 @@ export class OpenAIModel implements Model {
       messages: request.messages.map(toWireMessage),
       tools: request.tools.map(toWireTool),
       stream: true,
+      // Without this the token counts never arrive on a streamed response.
+      stream_options: { include_usage: true },
       ...(request.temperature !== undefined
         ? { temperature: request.temperature }
         : {}),
@@ -112,6 +115,7 @@ export class OpenAIModel implements Model {
 
     const calls = new ToolCallAccumulator();
     let stopReason: StopReason = "end_turn";
+    let promptTokens: number | undefined;
 
     try {
       for await (const chunk of readSse(response.body)) {
@@ -130,9 +134,13 @@ export class OpenAIModel implements Model {
         if (delta?.content) yield { type: "text_delta", text: delta.content };
         if (delta?.tool_calls) calls.add(delta.tool_calls);
 
-        if (choice?.finish_reason) {
+        if (choice?.finish_reason)
           stopReason = mapStopReason(choice.finish_reason);
-          break;
+        // The usage arrives after the finish reason, in a chunk carrying no
+        // choices at all, so the loop reads on to [DONE] rather than stopping
+        // at the last of the text.
+        if (chunk.usage?.prompt_tokens !== undefined) {
+          promptTokens = chunk.usage.prompt_tokens;
         }
       }
     } catch (error) {
@@ -152,7 +160,11 @@ export class OpenAIModel implements Model {
         args: call.args,
       };
     }
-    yield { type: "done", stopReason };
+    yield {
+      type: "done",
+      stopReason,
+      ...(promptTokens !== undefined ? { promptTokens } : {}),
+    };
   }
 }
 

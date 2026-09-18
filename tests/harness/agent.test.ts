@@ -349,6 +349,30 @@ describe("agent loop", () => {
   });
 });
 
+describe("the model's window", () => {
+  test("what the model read is reported, with the window it was given", async () => {
+    const ws = await makeWorkspace();
+    const model = new ScriptedModel([{ text: "done", promptTokens: 1991 }]);
+
+    const { events } = await collect(makeAgent(ws, model, [noteTool]), "go");
+
+    expect(events).toContainEqual({
+      type: "context",
+      promptTokens: 1991,
+      contextTokens: 32768,
+    });
+  });
+
+  test("a model that reports nothing produces no claim about the window", async () => {
+    const ws = await makeWorkspace();
+    const model = new ScriptedModel([{ text: "done" }]);
+
+    const { events } = await collect(makeAgent(ws, model, [noteTool]), "go");
+
+    expect(events.some((event) => event.type === "context")).toBe(false);
+  });
+});
+
 describe("resume", () => {
   test("records whether each tool call succeeded, across a save and load", async () => {
     const ws = await makeWorkspace();
@@ -368,6 +392,33 @@ describe("resume", () => {
       .filter((entry) => entry.message.role === "tool")
       .map((entry) => entry.ok);
     expect(outcomes).toEqual([false, true]);
+  });
+
+  test("records the model that produced the later turns, not the first one", async () => {
+    const ws = await makeWorkspace();
+    const { session } = await collect(
+      makeAgent(ws, new ScriptedModel([{ text: "first" }]), [noteTool]),
+      "go",
+    );
+    expect(session.model).toBe("scripted");
+
+    // What /model does: the same session, carried on by a different model.
+    const renamed: Model = {
+      id: "another-model",
+      stream: (request) =>
+        new ScriptedModel([{ text: "second" }]).stream(request),
+    };
+    const events: AgentEvent[] = [];
+    for await (const event of makeAgent(ws, renamed, [noteTool]).run(
+      session,
+      new AbortController().signal,
+    ))
+      events.push(event);
+
+    expect(session.model).toBe("another-model");
+    expect((await loadSession(ws.root, session.id)).model).toBe(
+      "another-model",
+    );
   });
 
   test("gives a resumed session a fresh turn budget", async () => {

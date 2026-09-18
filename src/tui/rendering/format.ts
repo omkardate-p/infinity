@@ -136,6 +136,12 @@ function printable(text: string): string {
   );
 }
 
+// How full the model's window is. Rounded down, and never past 100: a server
+// that reads exactly its window has dropped something, not read 101% of it.
+export function contextShare(used: number, window: number): string {
+  return `${Math.min(100, Math.floor((used / window) * 100))}%`;
+}
+
 // Seconds while a run is short, minutes and seconds once it is not.
 export function elapsed(ms: number): string {
   const seconds = Math.floor(ms / 1000);

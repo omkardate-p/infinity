@@ -69,6 +69,8 @@ function items(text: string): TranscriptItem[] {
       content: text,
     },
     { key: 7, kind: "notice", reason: "aborted", turns: 2 },
+    { key: 9, kind: "info", text },
+    { key: 10, kind: "context", used: 31_000, window: 32_768 },
     { key: 8, kind: "elapsed", ms: 61_000, at: Date.now() },
   ];
 }

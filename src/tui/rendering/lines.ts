@@ -22,6 +22,7 @@ import type { TranscriptItem } from "../../domain/messages.ts";
 import type { Buffer } from "../input/editor.ts";
 import {
   cells,
+  contextShare,
   elapsed,
   elide,
   elideLine,
@@ -156,6 +157,17 @@ export function itemLines(item: TranscriptItem, width: number): Line[] {
 
     case "info":
       return marked("◆ ", "cyan", item.text, width);
+
+    case "context":
+      return marked(
+        "▲ ",
+        "yellow",
+        `The model's window is ${contextShare(item.used, item.window)} full ` +
+          `(${item.used.toLocaleString()} of ${item.window.toLocaleString()} tokens). ` +
+          "Older turns stop reaching it from here; /clear starts a new session.",
+        width,
+        "yellow",
+      );
 
     case "notice": {
       const turns = `${item.turns} ${item.turns === 1 ? "turn" : "turns"}`;

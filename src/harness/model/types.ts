@@ -45,7 +45,7 @@ export type ModelEvent =
   | { type: "text_delta"; text: string }
   | { type: "thinking_delta"; text: string }
   | { type: "tool_call"; id: string; name: string; args: unknown }
-  | { type: "done"; stopReason: StopReason }
+  | { type: "done"; stopReason: StopReason; promptTokens?: number }
   | { type: "error"; error: Error };
 
 export interface Model {

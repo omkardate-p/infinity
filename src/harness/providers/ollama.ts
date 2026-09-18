@@ -54,6 +54,7 @@ interface WireChunk {
   };
   done?: boolean;
   done_reason?: string;
+  prompt_eval_count?: number;
   error?: string;
 }
 
@@ -115,6 +116,7 @@ export class OllamaModel implements Model {
 
     const calls = new ToolCallAccumulator();
     let stopReason: StopReason = "end_turn";
+    let promptTokens: number | undefined;
 
     try {
       for await (const chunk of readNdjson(response.body)) {
@@ -136,6 +138,7 @@ export class OllamaModel implements Model {
 
         if (chunk.done) {
           stopReason = mapStopReason(chunk.done_reason, calls.size > 0);
+          promptTokens = chunk.prompt_eval_count;
           break;
         }
       }
@@ -156,7 +159,11 @@ export class OllamaModel implements Model {
         args: call.args,
       };
     }
-    yield { type: "done", stopReason };
+    yield {
+      type: "done",
+      stopReason,
+      ...(promptTokens !== undefined ? { promptTokens } : {}),
+    };
   }
 }
 

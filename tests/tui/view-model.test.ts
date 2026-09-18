@@ -230,6 +230,51 @@ describe("ending a run", () => {
   });
 });
 
+describe("the model's window", () => {
+  const filling: AgentEvent = {
+    type: "context",
+    promptTokens: 16_000,
+    contextTokens: 32_768,
+  };
+  const nearlyFull: AgentEvent = {
+    type: "context",
+    promptTokens: 31_000,
+    contextTokens: 32_768,
+  };
+
+  test("what was read is kept, and says nothing while there is room", () => {
+    const state = apply(empty(), turnStart, filling);
+
+    expect(state.context).toEqual({
+      used: 16_000,
+      window: 32_768,
+      warned: false,
+    });
+    expect(state.committed).toEqual([]);
+  });
+
+  test("a window about to overflow is said once, not every turn", () => {
+    let state = apply(empty(), turnStart, nearlyFull);
+    expect(kinds(state.committed)).toEqual(["context"]);
+
+    state = apply(state, nearlyFull, nearlyFull);
+    expect(kinds(state.committed)).toEqual(["context"]);
+    expect(state.context?.used).toBe(31_000);
+  });
+
+  test("the warning lands under the answer, not above it", () => {
+    const state = apply(
+      empty(),
+      turnStart,
+      { type: "text_delta", text: "here is the answer" },
+      nearlyFull,
+    );
+
+    expect(kinds(state.committed)).toEqual(["assistant", "context"]);
+    expect(state.live).toBeUndefined();
+  });
+});
+
 describe("keys", () => {
   test("every committed item has a distinct key", () => {
     let state = commitUser(empty(), "first");

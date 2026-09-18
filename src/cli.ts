@@ -11,7 +11,7 @@
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import pkg from "../package.json";
-import type { AgentEvent } from "./domain/events.ts";
+import { type AgentEvent, CONTEXT_FULL } from "./domain/events.ts";
 import { Agent } from "./harness/agent/agent.ts";
 import {
   listSessions,
@@ -24,6 +24,7 @@ import type {
   ApprovalDecision,
   ApprovalRequest,
 } from "./harness/tools/tool.ts";
+import { contextShare } from "./tui/rendering/format.ts";
 import { runTui } from "./tui/run.ts";
 
 const DEFAULT_MODEL = "ornith:9b";
@@ -110,7 +111,7 @@ function usage(): string {
     "  --resume <id>      Continue a saved session",
     "  --sessions         List saved sessions in this workspace",
     "  --max-turns <n>    Stop after n model turns",
-    "  --no-thinking      Hide the model's reasoning",
+    "  --no-thinking      Hide the model's reasoning (--no-tui runs only)",
     "  --no-tui           Stream plain lines instead of the interactive interface",
     "  --yes              Approve every action without asking (non-interactive runs)",
   ].join("\n");
@@ -264,6 +265,19 @@ function render(event: AgentEvent, showThinking: boolean): void {
         `${marker} ${style.dim(preview)}${hidden > 0 ? style.dim(`\n  ... ${hidden} more lines`) : ""}`,
       );
       lastChannel = "other";
+      break;
+    }
+
+    case "context": {
+      // Said on every turn it holds, rather than once: a piped run is a log,
+      // and nothing here remembers what an earlier line already said.
+      if (event.promptTokens / event.contextTokens < CONTEXT_FULL) break;
+      breakLine();
+      console.log(
+        style.yellow(
+          `window ${contextShare(event.promptTokens, event.contextTokens)} full; older turns stop reaching the model`,
+        ),
+      );
       break;
     }
 

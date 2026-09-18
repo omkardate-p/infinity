@@ -56,7 +56,11 @@ export async function makeWorkspace(
 }
 
 export type ScriptedTurn =
-  | { text: string; calls?: { name: string; args: unknown }[] }
+  | {
+      text: string;
+      calls?: { name: string; args: unknown }[];
+      promptTokens?: number;
+    }
   | { error: string }
   // A transport failure: the stream throws rather than reporting an error.
   | { throws: string };
@@ -101,6 +105,9 @@ export class ScriptedModel implements Model {
     yield {
       type: "done",
       stopReason: turn.calls?.length ? "tool_calls" : "end_turn",
+      ...(turn.promptTokens !== undefined
+        ? { promptTokens: turn.promptTokens }
+        : {}),
     };
   }
 }

@@ -5,7 +5,13 @@
 
 import { TextAttributes } from "@opentui/core";
 import { useEffect, useState } from "react";
-import { elapsed, opaque, padLine, shortenPath } from "../rendering/format.ts";
+import {
+  contextShare,
+  elapsed,
+  opaque,
+  padLine,
+  shortenPath,
+} from "../rendering/format.ts";
 
 const FRAMES = ["✳", "✻", "✽", "✻"];
 
@@ -40,12 +46,16 @@ export function StatusLine({
   workspace,
   session,
   turn,
+  context,
   width,
 }: {
   model: string;
   workspace: string;
   session: string;
   turn: number;
+  // Absent until the first turn has been answered, because nothing has read
+  // the conversation yet.
+  context: { used: number; window: number } | undefined;
   width: number;
 }) {
   return (
@@ -53,7 +63,10 @@ export function StatusLine({
       {opaque(
         padLine(
           `  ${model} · ${shortenPath(workspace)} · ${session}` +
-            (turn > 0 ? ` · turn ${turn}` : ""),
+            (turn > 0 ? ` · turn ${turn}` : "") +
+            (context
+              ? ` · ctx ${contextShare(context.used, context.window)}`
+              : ""),
           width,
         ),
       )}

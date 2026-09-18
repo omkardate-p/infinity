@@ -540,6 +540,7 @@ export function App({
           workspace={workspace}
           session={session ? session.id : "new session"}
           turn={view.turn}
+          context={view.context}
           width={usable}
         />
       )}

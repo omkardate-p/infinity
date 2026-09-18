@@ -49,6 +49,7 @@ export interface AgentOptions {
 interface TurnResult {
   assistant: Message;
   calls: ToolCall[];
+  promptTokens?: number;
   error?: Error;
 }
 
@@ -91,6 +92,7 @@ export class Agent {
     session: SessionState,
     signal: AbortSignal,
   ): AsyncGenerator<AgentEvent> {
+    session.model = this.model.id;
     let denials = 0;
     // Counted per run, not per session: session.turns is a lifetime total, and
     // a resumed session would otherwise start already over its budget.
@@ -118,6 +120,14 @@ export class Agent {
         yield { type: "error", error: turn.error };
         yield { type: "done", reason: "model_error", turns: session.turns };
         return;
+      }
+
+      if (turn.promptTokens !== undefined) {
+        yield {
+          type: "context",
+          promptTokens: turn.promptTokens,
+          contextTokens: DEFAULT_CONTEXT_TOKENS,
+        };
       }
 
       session.entries.push({ message: turn.assistant });
@@ -186,6 +196,7 @@ export class Agent {
     const calls: ToolCall[] = [];
     let text = "";
     let thinking = "";
+    let promptTokens: number | undefined;
     let error: Error | undefined;
 
     const stream = this.model.stream({
@@ -212,6 +223,7 @@ export class Agent {
           error = event.error;
           break;
         case "done":
+          promptTokens = event.promptTokens;
           break;
       }
     }
@@ -220,7 +232,12 @@ export class Agent {
     if (thinking) assistant.thinking = thinking;
     if (calls.length) assistant.toolCalls = calls;
 
-    return { assistant, calls, ...(error ? { error } : {}) };
+    return {
+      assistant,
+      calls,
+      ...(promptTokens !== undefined ? { promptTokens } : {}),
+      ...(error ? { error } : {}),
+    };
   }
 
   private toolContext(signal: AbortSignal): ToolContext {

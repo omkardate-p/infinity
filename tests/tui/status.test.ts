@@ -40,6 +40,22 @@ describe("the footer covers the cells it draws over", () => {
     expect(row).not.toContain("X");
   });
 
+  test("the status line shows how full the window is", async () => {
+    const row = await overStaleGlyphs(
+      createElement(StatusLine, {
+        model: "ornith:9b",
+        workspace: "/tmp/w",
+        session: "s1",
+        turn: 2,
+        context: { used: 16_384, window: 32_768 },
+        width: 60,
+      }),
+    );
+
+    // The footer's spaces are no-break, so the row is read as it is seen.
+    expect(row.replaceAll("\u00a0", " ")).toContain("ctx 50%");
+  });
+
   test("the status line leaves nothing of the previous frame", async () => {
     const row = await overStaleGlyphs(
       createElement(StatusLine, {
@@ -47,6 +63,7 @@ describe("the footer covers the cells it draws over", () => {
         workspace: "/tmp/w",
         session: "s1",
         turn: 2,
+        context: undefined,
         width: 60,
       }),
     );
