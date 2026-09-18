@@ -12,6 +12,7 @@ import type {
   ApprovalRequest,
   ToolContext,
 } from "../src/tools/tool.ts";
+import type { Model, ModelEvent, ModelRequest } from "../src/model/types.ts";
 
 export interface TestWorkspace {
   root: string;
@@ -48,4 +49,56 @@ export async function makeWorkspace(
       return full;
     },
   };
+}
+
+export type ScriptedTurn =
+  | { text: string; calls?: { name: string; args: unknown }[] }
+  | { error: string }
+  /** A transport failure: the stream throws rather than reporting an error. */
+  | { throws: string };
+
+/**
+ * A model that replays a fixed script. The real Agent drives it, so a test gets
+ * the real event stream without anything reaching Ollama.
+ */
+export class ScriptedModel implements Model {
+  readonly id = "scripted";
+  readonly requests: ModelRequest[] = [];
+  private index = 0;
+
+  /** A delay between deltas, for tests that need a turn still in flight. */
+  constructor(
+    private readonly script: ScriptedTurn[],
+    private readonly delayMs = 0,
+  ) {}
+
+  async *stream(request: ModelRequest): AsyncIterable<ModelEvent> {
+    this.requests.push({ ...request, messages: [...request.messages] });
+    const turn = this.script[this.index++] ?? { text: "done" };
+
+    if ("throws" in turn) throw new Error(turn.throws);
+
+    if ("error" in turn) {
+      yield { type: "error", error: new Error(turn.error) };
+      return;
+    }
+
+    yield { type: "thinking_delta", text: "considering" };
+    for (const character of turn.text) {
+      if (this.delayMs > 0) await Bun.sleep(this.delayMs);
+      yield { type: "text_delta", text: character };
+    }
+    for (const [index, call] of (turn.calls ?? []).entries()) {
+      yield {
+        type: "tool_call",
+        id: `call_${this.index}_${index}`,
+        name: call.name,
+        args: call.args,
+      };
+    }
+    yield {
+      type: "done",
+      stopReason: turn.calls?.length ? "tool_calls" : "end_turn",
+    };
+  }
 }

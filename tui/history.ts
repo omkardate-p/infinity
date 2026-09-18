@@ -15,7 +15,6 @@ export function restore(entries: SessionEntry[]): ViewModel {
   const items: TranscriptItem[] = [];
   const requested = new Map<string, ToolCall>();
   let key = 0;
-  let seenUser = false;
 
   for (const entry of entries) {
     const message = entry.message;
@@ -25,15 +24,13 @@ export function restore(entries: SessionEntry[]): ViewModel {
       case "system":
         break;
 
-      case "user": {
-        if (seenUser) items.push({ key: key++, kind: "rule" });
-        seenUser = true;
+      case "user":
         items.push({ key: key++, kind: "user", text: text(message.content) });
         break;
-      }
 
       case "assistant": {
-        for (const call of message.toolCalls ?? []) requested.set(call.id, call);
+        for (const call of message.toolCalls ?? [])
+          requested.set(call.id, call);
         const body = text(message.content);
         if (body) items.push({ key: key++, kind: "assistant", text: body });
         break;
@@ -63,7 +60,10 @@ export function restore(entries: SessionEntry[]): ViewModel {
 // The loop records the outcome on every tool entry it writes, and a session
 // from before that refuses to load on version. Guessing a colour here would
 // show a denial as a success.
-function statusOf(entry: SessionEntry, name: string | undefined): "ok" | "failed" {
+function statusOf(
+  entry: SessionEntry,
+  name: string | undefined,
+): "ok" | "failed" {
   if (entry.ok === undefined) {
     throw new Error(
       `session entry for ${name ?? "a tool call"} records no outcome`,

@@ -9,45 +9,7 @@ import { loadSession } from "../src/agent/state.ts";
 import { ToolRegistry } from "../src/tools/registry.ts";
 import { fail, ok, type Tool } from "../src/tools/tool.ts";
 import type { Model, ModelEvent, ModelRequest } from "../src/model/types.ts";
-import { makeWorkspace } from "./helpers.ts";
-
-type ScriptedTurn =
-  | { text: string; calls?: { name: string; args: unknown }[] }
-  | { error: string };
-
-class ScriptedModel implements Model {
-  readonly id = "scripted";
-  readonly requests: ModelRequest[] = [];
-  private index = 0;
-
-  constructor(private readonly script: ScriptedTurn[]) {}
-
-  async *stream(request: ModelRequest): AsyncIterable<ModelEvent> {
-    this.requests.push({ ...request, messages: [...request.messages] });
-    const turn = this.script[this.index++] ?? { text: "done" };
-
-    if ("error" in turn) {
-      yield { type: "error", error: new Error(turn.error) };
-      return;
-    }
-
-    yield { type: "thinking_delta", text: "considering" };
-    for (const character of turn.text)
-      yield { type: "text_delta", text: character };
-    for (const [index, call] of (turn.calls ?? []).entries()) {
-      yield {
-        type: "tool_call",
-        id: `call_${this.index}_${index}`,
-        name: call.name,
-        args: call.args,
-      };
-    }
-    yield {
-      type: "done",
-      stopReason: turn.calls?.length ? "tool_calls" : "end_turn",
-    };
-  }
-}
+import { makeWorkspace, ScriptedModel } from "./helpers.ts";
 
 const noteTool: Tool = {
   name: "note",

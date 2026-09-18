@@ -5,61 +5,69 @@
  * workspace root, which is why nothing here assumes it.
  */
 
-import { Box, Text, useInput } from "ink";
+import { TextAttributes } from "@opentui/core";
+import { useKeyboard } from "@opentui/react";
 import type { ApprovalRequest } from "../src/tools/tool.ts";
+import { opaque, padLine } from "./format.ts";
 
 export function Approval({
   request,
+  width,
+  maxDetail,
   onDecide,
 }: {
   request: ApprovalRequest;
+  width: number;
+  /** Rows the footer can spare for the detail; a longer diff loses its middle. */
+  maxDetail: number;
   onDecide(decision: "allow" | "deny"): void;
 }) {
-  useInput((input, key) => {
-    const answer = input.toLowerCase();
+  useKeyboard((key) => {
+    const answer = key.name.toLowerCase();
     if (answer === "y") return onDecide("allow");
-    if (answer === "n" || key.escape) return onDecide("deny");
+    if (answer === "n" || answer === "escape") return onDecide("deny");
   });
 
+  const all = request.detail ? request.detail.split("\n") : [];
+  const shown = all.length > maxDetail ? Math.max(0, maxDetail - 1) : all.length;
+  const detail =
+    shown === all.length
+      ? all
+      : [...all.slice(0, shown), `… +${all.length - shown} lines`].slice(
+          0,
+          maxDetail,
+        );
+
+  // Border and padding take two cells on each side.
+  const inner = width - 4;
+
   return (
-    <Box
+    <box
       flexDirection="column"
-      borderStyle="round"
+      border={true}
+      borderStyle="rounded"
       borderColor="yellow"
-      paddingX={1}
-      marginTop={1}
+      paddingLeft={1}
+      paddingRight={1}
     >
-      <Text>
-        <Text bold color="yellow">
-          Approve {request.tool}
-        </Text>
-        <Text dimColor> · </Text>
-        <Text>{request.summary}</Text>
-      </Text>
-
-      {request.detail ? (
-        <Box flexDirection="column" marginTop={1}>
-          {request.detail.split("\n").map((line, index) => (
-            <DiffLine key={index} line={line} />
-          ))}
-        </Box>
-      ) : null}
-
-      <Box marginTop={1}>
-        <Text dimColor>[y] allow · [n] deny</Text>
-      </Box>
-    </Box>
+      <text fg="yellow">
+        {opaque(padLine(`Approve ${request.tool} · ${request.summary}`, inner))}
+      </text>
+      {detail.map((line, index) => (
+        <text key={index} fg={diffColor(line)}>
+          {opaque(padLine(line, inner))}
+        </text>
+      ))}
+      <text attributes={TextAttributes.DIM}>
+        {opaque(padLine("[y] allow · [n] deny", inner))}
+      </text>
+    </box>
   );
 }
 
-function DiffLine({ line }: { line: string }) {
-  const color = diffColor(line);
-  return <Text {...(color ? { color } : {})}>{line}</Text>;
-}
-
-function diffColor(line: string): string | undefined {
+function diffColor(line: string): string {
   if (line.startsWith("+")) return "green";
   if (line.startsWith("-")) return "red";
   if (line.startsWith("@@")) return "cyan";
-  return undefined;
+  return "white";
 }

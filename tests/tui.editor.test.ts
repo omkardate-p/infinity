@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { opaque } from "../tui/format.ts";
 import {
   backspace,
   deleteForward,
@@ -14,7 +15,6 @@ import {
   left,
   lineEnd,
   lineStart,
-  position,
   right,
   up,
   type Buffer,
@@ -94,10 +94,11 @@ describe("vertical movement", () => {
   });
 });
 
-describe("position", () => {
-  test("reports line and column for drawing the caret", () => {
-    expect(position(emptyBuffer())).toEqual({ line: 0, column: 0 });
-    expect(position(parse("one\ntw|o"))).toEqual({ line: 1, column: 2 });
-    expect(position(parse("one\n|two"))).toEqual({ line: 1, column: 0 });
+describe("opaque", () => {
+  test("swaps the spaces a footer line cannot rely on", () => {
+    // An ASCII space will not overwrite a glyph already in the cell, so the
+    // footer would show whatever the previous frame left there.
+    expect(opaque("a b  c")).toBe("a b  c");
+    expect(opaque("abc")).toBe("abc");
   });
 });

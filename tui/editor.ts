@@ -1,8 +1,10 @@
 /**
  * The composer's text buffer. Pure string and cursor arithmetic, so the part
  * of the input that is easy to get wrong can be tested without a terminal.
- * Nothing here knows about Ink, keys or rendering.
+ * Nothing here knows about keys or rendering.
  */
+
+import { graphemes } from "./format.ts";
 
 export interface Buffer {
   text: string;
@@ -25,32 +27,29 @@ export function insert(buffer: Buffer, inserted: string): Buffer {
 }
 
 export function backspace(buffer: Buffer): Buffer {
-  if (buffer.cursor === 0) return buffer;
+  const start = before(buffer.text, buffer.cursor);
+  if (start === buffer.cursor) return buffer;
   return {
-    text:
-      buffer.text.slice(0, buffer.cursor - 1) + buffer.text.slice(buffer.cursor),
-    cursor: buffer.cursor - 1,
+    text: buffer.text.slice(0, start) + buffer.text.slice(buffer.cursor),
+    cursor: start,
   };
 }
 
 export function deleteForward(buffer: Buffer): Buffer {
-  if (buffer.cursor >= buffer.text.length) return buffer;
+  const end = after(buffer.text, buffer.cursor);
+  if (end === buffer.cursor) return buffer;
   return {
-    text:
-      buffer.text.slice(0, buffer.cursor) + buffer.text.slice(buffer.cursor + 1),
+    text: buffer.text.slice(0, buffer.cursor) + buffer.text.slice(end),
     cursor: buffer.cursor,
   };
 }
 
 export function left(buffer: Buffer): Buffer {
-  return { ...buffer, cursor: Math.max(0, buffer.cursor - 1) };
+  return { ...buffer, cursor: before(buffer.text, buffer.cursor) };
 }
 
 export function right(buffer: Buffer): Buffer {
-  return {
-    ...buffer,
-    cursor: Math.min(buffer.text.length, buffer.cursor + 1),
-  };
+  return { ...buffer, cursor: after(buffer.text, buffer.cursor) };
 }
 
 export function lineStart(buffer: Buffer): Buffer {
@@ -84,14 +83,25 @@ export function down(buffer: Buffer): Buffer {
   return { ...buffer, cursor: Math.min(nextStart + column, nextEnd) };
 }
 
-/** Where the cursor sits, for drawing it and for placing the caret. */
-export function position(buffer: Buffer): { line: number; column: number } {
-  const before = buffer.text.slice(0, buffer.cursor);
-  const lines = before.split("\n");
-  return {
-    line: lines.length - 1,
-    column: lines[lines.length - 1]!.length,
-  };
+/**
+ * The cursor moves a whole grapheme at a time. A code unit at a time lands
+ * between the halves of a surrogate pair or between a letter and its accent,
+ * and the next backspace then sends half a character to the model.
+ */
+function before(text: string, offset: number): number {
+  let previous = 0;
+  for (const { index } of graphemes(text)) {
+    if (index >= offset) break;
+    previous = index;
+  }
+  return offset <= 0 ? 0 : previous;
+}
+
+function after(text: string, offset: number): number {
+  for (const { index, text: segment } of graphemes(text)) {
+    if (index >= offset) return index + segment.length;
+  }
+  return text.length;
 }
 
 function startOfLine(text: string, offset: number): number {

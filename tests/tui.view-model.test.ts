@@ -7,6 +7,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentEvent } from "../src/agent/agent.ts";
 import {
+  commitElapsed,
   commitUser,
   empty,
   reduce,
@@ -32,11 +33,22 @@ describe("commitUser", () => {
     expect(state.running).toBe(true);
   });
 
-  test("a later message is separated by a rule", () => {
+  test("a later message follows the one before it", () => {
     const first = commitUser(empty(), "fix the bug");
     const state = commitUser(first, "now the tests");
 
-    expect(kinds(state.committed)).toEqual(["user", "rule", "user"]);
+    expect(kinds(state.committed)).toEqual(["user", "user"]);
+  });
+});
+
+describe("commitElapsed", () => {
+  test("records how long the exchange took, which is what separates them", () => {
+    const state = commitElapsed(commitUser(empty(), "go"), 12_345, 1_700_000);
+
+    expect(state.committed).toMatchObject([
+      { kind: "user" },
+      { kind: "elapsed", ms: 12_345, at: 1_700_000 },
+    ]);
   });
 });
 

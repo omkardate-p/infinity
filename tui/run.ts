@@ -2,25 +2,40 @@
  * Mounts the TUI. The caller has already parsed arguments and built the model,
  * so nothing here duplicates the command line.
  *
- * Ink is told not to patch console: the CLI writes to stdout on the line-mode
- * path, and a stray write would clear and redraw the whole frame. The
- * alternate screen stays off so that finished transcript items land in the
- * terminal's own scrollback.
+ * split-footer keeps the transcript in the terminal's own scrollback, so it can
+ * be scrolled, searched and copied the way any command's output can, while the
+ * composer and the status line are redrawn in a pinned footer.
  *
- * A terminal sends the same byte for Enter and Shift+Enter unless the kitty
- * keyboard protocol is negotiated, which is what lets the composer tell a
- * newline from a submit. Auto mode queries the terminal first and stays off
- * where there is no answer.
+ * The kitty keyboard protocol is what makes Shift+Enter distinguishable from
+ * Enter: it arrives as CSI 13;2u, measured against iTerm2 3.7.1 with
+ * tui/keyprobe.ts. The renderer asks for disambiguateEscapeCodes and
+ * alternateKeys by default, which is what this wants. The two flags measured as
+ * harmful are the other ones: reportAllKeysAsEscapeCodes makes Shift+Enter
+ * report the shift key itself, and reportAssociatedText makes an ordinary key
+ * arrive with an empty modifier field that the key matcher rejects.
  */
 
 import { stdout } from "node:process";
-import { render, renderToString } from "ink";
+import { createCliRenderer, type CliRenderer } from "@opentui/core";
+import { createRoot } from "@opentui/react";
 import { createElement } from "react";
 import type { SessionState } from "../src/agent/state.ts";
 import type { Model } from "../src/model/types.ts";
 import type { ToolRegistry } from "../src/tools/registry.ts";
 import { App } from "./app.tsx";
-import { Banner } from "./status.tsx";
+
+const FOOTER_HEIGHT = 8;
+
+// The terminal reports window focus as CSI I and CSI O once asked. OpenTUI
+// parses both but never turns the reporting on, so without this the composer
+// cannot tell whether anyone is looking at it and its cursor blinks on into an
+// unfocused window.
+const ENABLE_FOCUS_REPORTING = "[?1004h";
+const DISABLE_FOCUS_REPORTING = "[?1004l";
+
+// Every signal that would otherwise end the process while the terminal is still
+// in raw mode, with a reserved footer and focus reporting left on.
+const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT"] as const;
 
 export interface TuiOptions {
   model: Model;
@@ -34,26 +49,49 @@ export interface TuiOptions {
 }
 
 export async function runTui(options: TuiOptions): Promise<number> {
-  // Written once, before Ink takes over. Inside the render tree it would sit in
-  // the live frame, which <Static> writes above, and sink under the transcript.
-  stdout.write(
-    renderToString(
-      createElement(Banner, {
-        model: options.model.id,
-        workspace: options.workspace,
-        version: options.version,
-      }),
-    ) + "\n",
-  );
+  stdout.write(ENABLE_FOCUS_REPORTING);
 
-  const { version: _banner, ...appProps } = options;
-  const app = render(createElement(App, appProps), {
-    patchConsole: false,
-    alternateScreen: false,
+  const renderer = await createCliRenderer({
     exitOnCtrlC: false,
-    kittyKeyboard: { mode: "auto", flags: ["disambiguateEscapeCodes"] },
+    screenMode: "split-footer",
+    footerHeight: FOOTER_HEIGHT,
+    // Required for writeToScrollback: the renderer owns stdout so that a
+    // committed snapshot and the footer cannot interleave.
+    externalOutputMode: "capture-stdout",
+    // Leaving wipes the screen otherwise, taking the transcript with it. The
+    // conversation belongs in the scrollback after the program ends, the way
+    // any other command's output does.
+    clearOnShutdown: false,
+    // With mouse tracking on, the terminal hands wheel events to this program
+    // instead of scrolling its own scrollback, so the transcript cannot be
+    // scrolled at all. Nothing here wants the mouse.
+    useMouse: false,
   });
 
-  await app.waitUntilExit();
-  return 0;
+  const restore = restorer(renderer);
+  process.on("exit", restore);
+
+  return new Promise<number>((resolve) => {
+    const finish = (): void => {
+      restore();
+      resolve(0);
+    };
+    for (const signal of SIGNALS) process.on(signal, finish);
+    createRoot(renderer).render(createElement(App, { ...options, onExit: finish }));
+  });
+}
+
+/**
+ * Puts the terminal back, once however many times it is called. A signal
+ * handler and the exit handler both run on the way out of a Ctrl-C, and
+ * destroy() a second time is not free.
+ */
+function restorer(renderer: CliRenderer): () => void {
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    renderer.destroy();
+    stdout.write(DISABLE_FOCUS_REPORTING);
+  };
 }

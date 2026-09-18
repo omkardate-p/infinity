@@ -1,47 +1,17 @@
 /**
- * The fixed furniture: the banner at startup, the spinner while a turn runs,
- * and the status line under the composer. None of it reads the agent; it is
- * handed what it shows.
+ * The spinner and the status line. Both live in the footer, which is redrawn
+ * every frame, so neither is ever committed to scrollback.
  */
 
 import { useEffect, useState } from "react";
-import { Box, Text } from "ink";
-import { elapsed, shortenPath } from "./format.ts";
+import { TextAttributes } from "@opentui/core";
+import { elapsed, opaque, padLine, shortenPath } from "./format.ts";
 
 const FRAMES = ["✳", "✻", "✽", "✻"];
+
 const FRAME_MS = 120;
 
-export function Banner({
-  model,
-  workspace,
-  version,
-}: {
-  model: string;
-  workspace: string;
-  version: string;
-}) {
-  return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderDimColor
-      paddingX={1}
-      marginBottom={1}
-    >
-      <Text>
-        <Text dimColor>{">_ "}</Text>
-        <Text bold>infinity</Text>
-        <Text dimColor> ({version})</Text>
-      </Text>
-      <Box marginTop={1} flexDirection="column">
-        <Text dimColor>model: {model}</Text>
-        <Text dimColor>directory: {shortenPath(workspace, 60)}</Text>
-      </Box>
-    </Box>
-  );
-}
-
-export function Spinner({ since }: { since: number }) {
+export function Spinner({ since, width }: { since: number; width: number }) {
   const [frame, setFrame] = useState(0);
   const [now, setNow] = useState(Date.now);
 
@@ -54,13 +24,12 @@ export function Spinner({ since }: { since: number }) {
   }, []);
 
   return (
-    <Box marginTop={1}>
-      <Text color="yellow">{FRAMES[frame]} </Text>
-      <Text bold>Working </Text>
-      <Text dimColor>
-        ({elapsed(now - since)} · esc to interrupt)
-      </Text>
-    </Box>
+    <text fg="yellow">
+      {opaque(padLine(
+        `${FRAMES[frame]} Working (${elapsed(now - since)} · esc to interrupt)`,
+        width,
+      ))}
+    </text>
   );
 }
 
@@ -69,18 +38,21 @@ export function StatusLine({
   workspace,
   session,
   turn,
+  width,
 }: {
   model: string;
   workspace: string;
   session: string;
   turn: number;
+  width: number;
 }) {
   return (
-    <Box paddingLeft={2}>
-      <Text dimColor>
-        {model} · {shortenPath(workspace)} · {session}
-        {turn > 0 ? ` · turn ${turn}` : ""}
-      </Text>
-    </Box>
+    <text attributes={TextAttributes.DIM}>
+      {opaque(padLine(
+        `  ${model} · ${shortenPath(workspace)} · ${session}` +
+          (turn > 0 ? ` · turn ${turn}` : ""),
+        width,
+      ))}
+    </text>
   );
 }

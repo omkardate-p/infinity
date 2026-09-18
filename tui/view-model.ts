@@ -1,7 +1,8 @@
 /**
  * Turns the agent's event stream into transcript items. Pure: no React, no
- * terminal, no agent. An item is either committed, meaning Ink's <Static> has
- * taken it and it can never be redrawn, or live, meaning it is still changing.
+ * terminal, no agent. An item is either committed, meaning the terminal's own
+ * scrollback holds it and it can never be redrawn, or live, meaning it is still
+ * changing.
  * Nothing is committed until it is final, which is why this file is separate
  * from the components that render it.
  */
@@ -11,7 +12,14 @@ import type { AgentEvent, AgentStopReason } from "../src/agent/agent.ts";
 export type ToolStatus = "running" | "ok" | "failed";
 
 export type TranscriptItem =
-  | { key: number; kind: "rule" }
+  | { key: number; kind: "elapsed"; ms: number; at: number }
+  | {
+      key: number;
+      kind: "banner";
+      model: string;
+      workspace: string;
+      version: string;
+    }
   | { key: number; kind: "user"; text: string }
   | { key: number; kind: "assistant"; text: string }
   | {
@@ -46,20 +54,45 @@ export function empty(): ViewModel {
   };
 }
 
-export function commitUser(state: ViewModel, text: string): ViewModel {
-  const rule: TranscriptItem[] =
-    state.committed.length > 0 ? [{ key: state.nextKey, kind: "rule" }] : [];
-  const user: TranscriptItem = {
-    key: state.nextKey + rule.length,
-    kind: "user",
-    text,
-  };
-
+export function withBanner(
+  state: ViewModel,
+  banner: { model: string; workspace: string; version: string },
+): ViewModel {
   return {
     ...state,
-    committed: [...state.committed, ...rule, user],
-    nextKey: user.key + 1,
+    committed: [
+      { key: state.nextKey, kind: "banner", ...banner },
+      ...state.committed,
+    ],
+    nextKey: state.nextKey + 1,
+  };
+}
+
+export function commitUser(state: ViewModel, text: string): ViewModel {
+  return {
+    ...state,
+    committed: [...state.committed, { key: state.nextKey, kind: "user", text }],
+    nextKey: state.nextKey + 1,
     running: true,
+  };
+}
+
+/**
+ * How long the exchange took, written under it. This is what separates one
+ * exchange from the next; the caller owns the clock, so this stays pure.
+ */
+export function commitElapsed(
+  state: ViewModel,
+  ms: number,
+  at: number,
+): ViewModel {
+  return {
+    ...state,
+    committed: [
+      ...state.committed,
+      { key: state.nextKey, kind: "elapsed", ms, at },
+    ],
+    nextKey: state.nextKey + 1,
   };
 }
 

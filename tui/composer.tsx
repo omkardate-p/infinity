@@ -1,24 +1,25 @@
 /**
- * The prompt input. Multiline, because a coding task rarely fits on one line
- * and every maintained Ink input is single-line.
+ * The prompt input. Multiline, because a coding task rarely fits on one line.
  *
- * Enter submits and Shift+Enter inserts a newline. Terminals that send the same
- * bytes for both cannot distinguish them, and there is no way for this file to
- * tell; that is a property of the emulator, checked by hand rather than guessed
- * at here. Pasted text arrives through usePaste, on a separate channel, so a
- * multi-line paste never reads as a row of Enter presses.
+ * Enter submits and Shift+Enter inserts a newline. A terminal sends the same
+ * bytes for both until the kitty keyboard protocol is negotiated, which run.ts
+ * does; Shift+Enter then arrives here as a return key with shift set. Pasted
+ * text comes through usePaste, on its own channel, so a multi-line paste is
+ * never a row of Enter presses.
  */
 
-import { Box, Text, useInput, usePaste } from "ink";
+import { useEffect, useRef, useState } from "react";
+import { useBlur, useFocus, useKeyboard, usePaste } from "@opentui/react";
+import { composerLines, opaqueLines, styledText } from "./lines.ts";
 import {
   backspace,
+  emptyBuffer,
   deleteForward,
   down,
   insert,
   left,
   lineEnd,
   lineStart,
-  position,
   right,
   up,
   type Buffer,
@@ -26,77 +27,129 @@ import {
 
 export function Composer({
   buffer,
+  width,
+  maxRows,
   onChange,
   onSubmit,
   isActive,
 }: {
   buffer: Buffer;
+  width: number;
+  /** Rows the footer can spare; more text than that scrolls under the cursor. */
+  maxRows: number;
   onChange(next: Buffer): void;
-  onSubmit(text: string): void;
+  /** Returns false when the prompt was refused, so the text is kept. */
+  onSubmit(text: string): boolean;
   isActive: boolean;
 }) {
-  usePaste((text) => onChange(insert(buffer, text)), { isActive });
+  // The key handler is subscribed once and several keystrokes can arrive before
+  // React re-renders, so the buffer is mirrored here and updated as each edit
+  // is made. Reading it from the closure, or syncing it only on render, edits a
+  // buffer from before the previous keystroke.
+  const latest = useRef(buffer);
+  if (latest.current.text !== buffer.text) latest.current = buffer;
 
-  useInput(
-    (input, key) => {
-      if (key.return) {
-        if (key.shift) {
-          onChange(insert(buffer, "\n"));
-          return;
-        }
-        const text = buffer.text.trim();
-        if (text) onSubmit(text);
+  // Focus here is the terminal window's, reported by the emulator. A cursor
+  // that keeps blinking in a window nobody is looking at is noise.
+  const [windowFocused, setWindowFocused] = useState(true);
+  useFocus(() => setWindowFocused(true));
+  useBlur(() => setWindowFocused(false));
+
+  // The cursor holds steady while keys are arriving and blinks once they stop,
+  // so it reads as a resting caret rather than flickering under the typing.
+  const typedAt = useRef(0);
+  const [blinkOn, setBlinkOn] = useState(true);
+  useEffect(() => {
+    if (!isActive || !windowFocused) return;
+    const timer = setInterval(() => {
+      setBlinkOn((on) =>
+        Date.now() - typedAt.current < BLINK_MS ? true : !on,
+      );
+    }, BLINK_MS);
+    return () => clearInterval(timer);
+  }, [isActive, windowFocused]);
+
+  const edit = (change: (previous: Buffer) => Buffer): void => {
+    typedAt.current = Date.now();
+    setBlinkOn(true);
+    latest.current = change(latest.current);
+    onChange(latest.current);
+  };
+
+  // A paste arrives as raw bytes on its own channel, so a multi-line paste is
+  // never mistaken for a row of Enter presses.
+  const decoder = new TextDecoder();
+  usePaste((event) => {
+    if (isActive)
+      edit((previous) => insert(previous, decoder.decode(event.bytes)));
+  });
+
+  useKeyboard((key) => {
+    if (!isActive) return;
+
+    switch (key.name) {
+      case "return":
+      case "enter": {
+        if (key.shift) return edit((previous) => insert(previous, "\n"));
+        const text = latest.current.text.trim();
+        if (!text) return;
+        // Cleared here rather than waiting for the parent's next render: keys
+        // can arrive before React re-renders and would otherwise append to the
+        // prompt that was just sent.
+        if (onSubmit(text)) latest.current = emptyBuffer();
         return;
       }
+      case "backspace":
+        return edit(backspace);
+      case "delete":
+        return edit(deleteForward);
+      case "left":
+        return edit(left);
+      case "right":
+        return edit(right);
+      case "up":
+        return edit(up);
+      case "down":
+        return edit(down);
+      case "home":
+        return edit(lineStart);
+      case "end":
+        return edit(lineEnd);
+    }
 
-      if (key.backspace) return onChange(backspace(buffer));
-      if (key.delete) return onChange(deleteForward(buffer));
-      if (key.leftArrow) return onChange(left(buffer));
-      if (key.rightArrow) return onChange(right(buffer));
-      if (key.upArrow) return onChange(up(buffer));
-      if (key.downArrow) return onChange(down(buffer));
-      if (key.home || (key.ctrl && input === "a"))
-        return onChange(lineStart(buffer));
-      if (key.end || (key.ctrl && input === "e"))
-        return onChange(lineEnd(buffer));
+    if (key.ctrl) {
+      if (key.name === "a") edit(lineStart);
+      if (key.name === "e") edit(lineEnd);
+      return;
+    }
 
-      if (key.ctrl || key.escape || key.tab || key.meta) return;
-      if (input) onChange(insert(buffer, input));
-    },
-    { isActive },
-  );
+    // Anything that is not a named key and carries one printable character.
+    if (key.sequence.length === 1 && key.sequence >= " ") {
+      const { sequence } = key;
+      edit((previous) => insert(previous, sequence));
+    }
+  });
 
-  const lines = buffer.text.split("\n");
-  const caret = position(buffer);
+  const showCaret = isActive && windowFocused && blinkOn;
 
   return (
-    <Box borderStyle="round" borderDimColor paddingX={1} flexDirection="column">
-      {lines.map((line, index) => (
-        <Box key={index}>
-          <Text color="cyan">{index === 0 ? "› " : "  "}</Text>
-          {buffer.text === "" && index === 0 ? (
-            <Text dimColor>Ask infinity to do anything</Text>
-          ) : (
-            <Line
-              text={line}
-              caret={isActive && index === caret.line ? caret.column : -1}
-            />
-          )}
-        </Box>
+    <box
+      flexDirection="column"
+      border={["top", "bottom"]}
+      borderStyle="single"
+      borderColor="#4a4a4a"
+    >
+      {composerLines(
+        buffer,
+        width,
+        showCaret ? buffer.cursor : -1,
+        maxRows,
+      ).map((line, index) => (
+        <text key={index} content={styledText(opaqueLines([line]))} />
       ))}
-    </Box>
+    </box>
   );
 }
 
-/** The caret is drawn as an inverted cell, so no real cursor has to be moved. */
-function Line({ text, caret }: { text: string; caret: number }) {
-  if (caret < 0) return <Text>{text}</Text>;
-
-  return (
-    <Text>
-      {text.slice(0, caret)}
-      <Text inverse>{text[caret] ?? " "}</Text>
-      {text.slice(caret + 1)}
-    </Text>
-  );
-}
+/** Half a blink: how long the cursor stays shown, and then hidden. */
+const BLINK_MS = 500;

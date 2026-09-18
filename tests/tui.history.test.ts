@@ -72,7 +72,6 @@ describe("restore", () => {
         args: { path: "src/cli.ts" },
         status: "ok",
       },
-      { kind: "rule" },
       { kind: "user", text: "now run the tests" },
       {
         kind: "tool",
